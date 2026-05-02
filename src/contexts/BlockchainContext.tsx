@@ -1,7 +1,18 @@
 // src/contexts/BlockchainContext.tsx
-import { createContext, useState, useEffect, useCallback, useRef, ReactNode } from "react";
+// Connecté au backend Railway — https://budgetouvert-ci-production.up.railway.app
+// Format de réponse API réel pris en compte
 
-// ── Types ─────────────────────────────────────────────────────────────────────
+import {
+  createContext,
+  useState,
+  useEffect,
+  useCallback,
+  ReactNode,
+} from "react";
+
+const API_BASE        = "https://budgetouvert-ci-production.up.railway.app/api/budget";
+const DEFAULT_COMMUNE  = "Commune Cocody";
+const DEFAULT_RECORDER = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266";
 
 export interface Transaction {
   id:          number;
@@ -26,226 +37,188 @@ export interface TxPayload {
 export interface TxResult {
   success: boolean;
   hash?:   string;
+  error?:  string;
 }
 
 export interface BlockchainContextType {
-  account:              string | null;
-  isConnected:          boolean;
-  chainId:              number | null;
-  mode:                 "real" | "local";
-  connectWallet:        () => Promise<void>;
-  transactions:         Transaction[];
-  balance:              number;
-  totalRecettes:        number;
-  totalDepenses:        number;
-  loading:              boolean;
-  txPending:            boolean;
-  error:                string | null;
-  lastTxHash:           string | null;
-  recordExpense:        (payload: TxPayload) => Promise<TxResult>;
-  recordRevenue:        (payload: TxPayload) => Promise<TxResult>;
-  refreshTransactions:  () => void;
-  commune:              string;
+  account:             string | null;
+  isConnected:         boolean;
+  chainId:             number | null;
+  mode:                "real" | "local";
+  connectWallet:       () => Promise<void>;
+  transactions:        Transaction[];
+  balance:             number;
+  totalRecettes:       number;
+  totalDepenses:       number;
+  loading:             boolean;
+  txPending:           boolean;
+  error:               string | null;
+  lastTxHash:          string | null;
+  recordExpense:       (payload: TxPayload) => Promise<TxResult>;
+  recordRevenue:       (payload: TxPayload) => Promise<TxResult>;
+  refreshTransactions: () => void;
+  commune:             string;
 }
 
-// ── Déclaration de window.ethereum pour TypeScript ────────────────────────────
-declare global {
-  interface Window {
-    ethereum?: {
-      request:  (args: { method: string; params?: unknown[] }) => Promise<unknown>;
-      on:       (event: string, handler: (args: unknown) => void) => void;
-      off?:     (event: string, handler: (args: unknown) => void) => void;
-    };
-  }
+// Format brut retourné par le backend
+interface RawTransaction {
+  id:          number;
+  communeName: string;
+  txType:      "REVENUE" | "EXPENSE";
+  category:    string;
+  amount:      string;
+  timestamp:   string;
+  description: string;
+  recorder:    string;
+  hash?:       string;
 }
 
-// ── ABI minimal ───────────────────────────────────────────────────────────────
-const ABI = [
-  { inputs:[{name:"commune",type:"string"},{name:"category",type:"string"},{name:"amount",type:"uint256"},{name:"description",type:"string"}], name:"recordRevenue",  outputs:[], stateMutability:"nonpayable", type:"function" },
-  { inputs:[{name:"commune",type:"string"},{name:"category",type:"string"},{name:"amount",type:"uint256"},{name:"description",type:"string"}], name:"recordExpense",  outputs:[], stateMutability:"nonpayable", type:"function" },
-  { inputs:[{name:"commune",type:"string"}], name:"getTransactions", outputs:[{components:[{name:"id",type:"uint256"},{name:"commune",type:"string"},{name:"txType",type:"uint8"},{name:"category",type:"string"},{name:"amount",type:"uint256"},{name:"timestamp",type:"uint256"},{name:"description",type:"string"},{name:"recorder",type:"address"}],type:"tuple[]"}], stateMutability:"view", type:"function" },
-  { inputs:[{name:"commune",type:"string"}], name:"getBalance",      outputs:[{name:"",type:"int256"}],  stateMutability:"view", type:"function" },
-  { anonymous:false, inputs:[{indexed:true,name:"id",type:"uint256"},{indexed:true,name:"commune",type:"string"},{indexed:false,name:"txType",type:"uint8"},{indexed:false,name:"category",type:"string"},{indexed:false,name:"amount",type:"uint256"},{indexed:false,name:"timestamp",type:"uint256"},{indexed:false,name:"description",type:"string"},{indexed:false,name:"recorder",type:"address"}], name:"TransactionRecorded", type:"event" },
-];
-
-// ── Config ────────────────────────────────────────────────────────────────────
-// ⚠️ Remplacer par l'adresse réelle après déploiement sur Amoy
-export const CONTRACT_ADDRESS = "0x0000000000000000000000000000000000000000";
-const DEFAULT_COMMUNE = "Commune Cocody";
-
-// ── Context ───────────────────────────────────────────────────────────────────
-export const BlockchainContext = createContext<BlockchainContextType | null>(null);
-
-// ── Conversion blockchain → objet JS ─────────────────────────────────────────
-function parseTx(tx: Record<string, unknown>, index: number): Transaction {
+// Convertir la réponse brute en Transaction utilisable par les dashboards
+function parseRawTx(raw: RawTransaction): Transaction {
   return {
-    id:          Number(tx.id ?? index + 1),
-    commune:     String(tx.commune ?? ""),
-    type:        Number(tx.txType) === 0 ? "recette" : "dépense",
-    category:    String(tx.category ?? ""),
-    amount:      Number(tx.amount ?? 0),
-    date:        new Date(Number(tx.timestamp ?? 0) * 1000).toLocaleDateString("fr-FR"),
-    timestamp:   Number(tx.timestamp ?? 0),
-    description: String(tx.description ?? ""),
-    recorder:    String(tx.recorder ?? ""),
-    hash:        (tx.hash as string) ?? null,
+    id:          raw.id,
+    commune:     raw.communeName,
+    type:        raw.txType === "REVENUE" ? "recette" : "dépense",
+    category:    raw.category,
+    amount:      Number(raw.amount),
+    date:        new Date(raw.timestamp).toLocaleDateString("fr-FR"),
+    timestamp:   Math.floor(new Date(raw.timestamp).getTime() / 1000),
+    description: raw.description,
+    recorder:    raw.recorder,
+    hash:        raw.hash ?? null,
   };
 }
 
-// ── Provider ──────────────────────────────────────────────────────────────────
+export const BlockchainContext = createContext<BlockchainContextType | null>(null);
+
 export function BlockchainProvider({ children }: { children: ReactNode }) {
-  const [account,      setAccount]      = useState<string | null>(null);
-  const [isConnected,  setIsConnected]  = useState(false);
-  const [chainId,      setChainId]      = useState<number | null>(null);
-  const [mode,         setMode]         = useState<"real" | "local">("local");
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading,      setLoading]      = useState(false);
   const [txPending,    setTxPending]    = useState(false);
   const [error,        setError]        = useState<string | null>(null);
   const [lastTxHash,   setLastTxHash]   = useState<string | null>(null);
+  const [mode,         setMode]         = useState<"real" | "local">("local");
+  const [account,      setAccount]      = useState<string | null>(null);
+  const [isConnected,  setIsConnected]  = useState(false);
+  const [chainId,      setChainId]      = useState<number | null>(null);
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const contractRef = useRef<any>(null);
-
-  // ── Connexion MetaMask ──────────────────────────────────────────────────────
-  const connectWallet = useCallback(async () => {
-    if (!window.ethereum) {
-      setError("MetaMask non détecté — mode simulation activé");
-      return;
-    }
+  // Charger les transactions — backend retourne un tableau direct []
+  const loadTransactions = useCallback(async () => {
+    setLoading(true);
+    setError(null);
     try {
-      setLoading(true);
-      setError(null);
-      const { ethers } = await import("ethers");
-      const accounts   = await window.ethereum.request({ method: "eth_requestAccounts" }) as string[];
-      const provider   = new ethers.BrowserProvider(window.ethereum as never);
-      const signer     = await provider.getSigner();
-      const network    = await provider.getNetwork();
-
-      contractRef.current = new ethers.Contract(CONTRACT_ADDRESS, ABI, signer);
-
-      setAccount(accounts[0]);
-      setChainId(Number(network.chainId));
-      setIsConnected(true);
+      const res = await fetch(
+        `${API_BASE}/transactions/${encodeURIComponent(DEFAULT_COMMUNE)}`
+      );
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const rawList: RawTransaction[] = await res.json();
+      setTransactions(rawList.map(parseRawTx));
       setMode("real");
-
-      window.ethereum.on("accountsChanged", (accs: unknown) => {
-        const list = accs as string[];
-        setAccount(list[0] ?? null);
-        if (!list[0]) { setIsConnected(false); setMode("local"); }
-      });
-
-      await loadFromChain();
-    } catch {
-      setError("Connexion MetaMask échouée — mode simulation activé");
-    } finally {
-      setLoading(false);
-    }
-  }, []); // eslint-disable-line
-
-  // ── Lire depuis la blockchain ───────────────────────────────────────────────
-  const loadFromChain = useCallback(async () => {
-    if (!contractRef.current) return;
-    try {
-      setLoading(true);
-      const raw = await contractRef.current.getTransactions(DEFAULT_COMMUNE) as Record<string, unknown>[];
-      setTransactions(raw.map((tx, i) => parseTx(tx, i)));
-    } catch (e) {
-      console.warn("Lecture blockchain:", e);
-      setError("Impossible de lire la blockchain");
+    } catch (e: any) {
+      console.warn("Backend inaccessible:", e.message);
+      setMode("local");
     } finally {
       setLoading(false);
     }
   }, []);
 
-  // ── Écoute événements temps réel ───────────────────────────────────────────
+  useEffect(() => { loadTransactions(); }, [loadTransactions]);
+
+  // Polling toutes les 10 secondes
   useEffect(() => {
-    if (mode !== "real" || !contractRef.current) return;
-    const c = contractRef.current;
+    const interval = setInterval(loadTransactions, 10_000);
+    return () => clearInterval(interval);
+  }, [loadTransactions]);
 
-    const handler = (
-      id: unknown, commune: unknown, txType: unknown,
-      category: unknown, amount: unknown, timestamp: unknown,
-      description: unknown, recorder: unknown,
-      event: { transactionHash: string }
-    ) => {
-      const newTx = parseTx({ id, commune, txType, category, amount, timestamp, description, recorder }, 0);
-      newTx.hash = event.transactionHash;
-      setTransactions(prev => prev.find(t => t.id === Number(id)) ? prev : [newTx, ...prev]);
-    };
+  const connectWallet = useCallback(async () => {
+    if (!(window as any).ethereum) { setError("MetaMask non détecté"); return; }
+    try {
+      const accounts = await (window as any).ethereum.request({ method: "eth_requestAccounts" }) as string[];
+      const chainHex = await (window as any).ethereum.request({ method: "eth_chainId" }) as string;
+      setAccount(accounts[0] ?? null);
+      setChainId(parseInt(chainHex, 16));
+      setIsConnected(true);
+    } catch { setError("Connexion MetaMask échouée"); }
+  }, []);
 
-    c.on("TransactionRecorded", handler);
-    return () => c.off("TransactionRecorded", handler);
-  }, [mode]);
-
-  // ── Enregistrer dépense ─────────────────────────────────────────────────────
-  const recordExpense = useCallback(async ({ commune, category, amount, description }: TxPayload): Promise<TxResult> => {
-    setError(null);
-
-    if (mode === "real" && contractRef.current) {
-      try {
-        setTxPending(true);
-        const tx = await contractRef.current.recordExpense(commune ?? DEFAULT_COMMUNE, category, Math.round(amount), description);
-        setLastTxHash(tx.hash);
-        await tx.wait();
-        return { success: true, hash: tx.hash };
-      } catch (e: unknown) {
-        const err = e as { reason?: string; message?: string };
-        setError(err.reason ?? err.message ?? "Transaction échouée");
-        return { success: false };
-      } finally {
-        setTxPending(false);
-      }
-    }
-
-    // Mode local (simulation)
-    const hash = "0x" + Math.random().toString(16).slice(2, 18) + "...local";
-    const newTx: Transaction = {
-      id: transactions.length + 1,
-      commune: commune ?? DEFAULT_COMMUNE,
-      type: "dépense", category, amount: Math.round(amount),
-      date: new Date().toLocaleDateString("fr-FR"),
-      timestamp: Math.floor(Date.now() / 1000),
-      description, recorder: "0xSimulation...", hash,
-    };
-    setTransactions(prev => [newTx, ...prev]);
-    return { success: true, hash };
-  }, [mode, transactions]);
-
-  // ── Enregistrer recette ─────────────────────────────────────────────────────
   const recordRevenue = useCallback(async ({ commune, category, amount, description }: TxPayload): Promise<TxResult> => {
     setError(null);
-
-    if (mode === "real" && contractRef.current) {
-      try {
-        setTxPending(true);
-        const tx = await contractRef.current.recordRevenue(commune ?? DEFAULT_COMMUNE, category, Math.round(amount), description);
-        setLastTxHash(tx.hash);
-        await tx.wait();
-        return { success: true, hash: tx.hash };
-      } catch (e: unknown) {
-        const err = e as { reason?: string; message?: string };
-        setError(err.reason ?? err.message ?? "Transaction échouée");
-        return { success: false };
-      } finally {
-        setTxPending(false);
-      }
+    if (mode === "local") {
+      const fake: Transaction = {
+        id: transactions.length + 1, commune: commune ?? DEFAULT_COMMUNE,
+        type: "recette", category, amount: Math.round(amount),
+        date: new Date().toLocaleDateString("fr-FR"),
+        timestamp: Math.floor(Date.now() / 1000), description,
+        recorder: "0xSimulation...",
+        hash: "0x" + Math.random().toString(16).slice(2, 18) + "...local",
+      };
+      setTransactions(prev => [fake, ...prev]);
+      return { success: true, hash: fake.hash! };
     }
+    setTxPending(true);
+    try {
+      const res = await fetch(`${API_BASE}/revenue`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          commune: commune ?? DEFAULT_COMMUNE,
+          category,
+          amount: String(Math.round(amount)),
+          description,
+          recorder: account ?? DEFAULT_RECORDER,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+      setLastTxHash(data.hash ?? null);
+      await loadTransactions();
+      return { success: true, hash: data.hash };
+    } catch (e: any) {
+      const msg = e.message ?? "Erreur enregistrement";
+      setError(msg);
+      return { success: false, error: msg };
+    } finally { setTxPending(false); }
+  }, [mode, transactions, account, loadTransactions]);
 
-    const hash = "0x" + Math.random().toString(16).slice(2, 18) + "...local";
-    const newTx: Transaction = {
-      id: transactions.length + 1,
-      commune: commune ?? DEFAULT_COMMUNE,
-      type: "recette", category, amount: Math.round(amount),
-      date: new Date().toLocaleDateString("fr-FR"),
-      timestamp: Math.floor(Date.now() / 1000),
-      description, recorder: "0xSimulation...", hash,
-    };
-    setTransactions(prev => [newTx, ...prev]);
-    return { success: true, hash };
-  }, [mode, transactions]);
+  const recordExpense = useCallback(async ({ commune, category, amount, description }: TxPayload): Promise<TxResult> => {
+    setError(null);
+    if (mode === "local") {
+      const fake: Transaction = {
+        id: transactions.length + 1, commune: commune ?? DEFAULT_COMMUNE,
+        type: "dépense", category, amount: Math.round(amount),
+        date: new Date().toLocaleDateString("fr-FR"),
+        timestamp: Math.floor(Date.now() / 1000), description,
+        recorder: "0xSimulation...",
+        hash: "0x" + Math.random().toString(16).slice(2, 18) + "...local",
+      };
+      setTransactions(prev => [fake, ...prev]);
+      return { success: true, hash: fake.hash! };
+    }
+    setTxPending(true);
+    try {
+      const res = await fetch(`${API_BASE}/expense`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          commune: commune ?? DEFAULT_COMMUNE,
+          category,
+          amount: String(Math.round(amount)),
+          description,
+          recorder: account ?? DEFAULT_RECORDER,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+      setLastTxHash(data.hash ?? null);
+      await loadTransactions();
+      return { success: true, hash: data.hash };
+    } catch (e: any) {
+      const msg = e.message ?? "Erreur enregistrement";
+      setError(msg);
+      return { success: false, error: msg };
+    } finally { setTxPending(false); }
+  }, [mode, transactions, account, loadTransactions]);
 
-  // ── Calculs dérivés ─────────────────────────────────────────────────────────
   const totalRecettes = transactions.filter(t => t.type === "recette").reduce((s, t) => s + t.amount, 0);
   const totalDepenses = transactions.filter(t => t.type === "dépense").reduce((s, t) => s + t.amount, 0);
   const balance       = totalRecettes - totalDepenses;
@@ -256,7 +229,7 @@ export function BlockchainProvider({ children }: { children: ReactNode }) {
       transactions, balance, totalRecettes, totalDepenses,
       loading, txPending, error, lastTxHash,
       recordExpense, recordRevenue,
-      refreshTransactions: loadFromChain,
+      refreshTransactions: loadTransactions,
       commune: DEFAULT_COMMUNE,
     }}>
       {children}
