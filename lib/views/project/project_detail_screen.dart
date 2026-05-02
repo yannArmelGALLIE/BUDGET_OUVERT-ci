@@ -1,8 +1,12 @@
 // lib/views/project/project_detail_screen.dart
 import 'package:flutter/material.dart';
+
 import '../../utils/app_constants.dart';
 import '../../widgets/shared_widgets.dart';
+import '../../widgets/audio_player_card.dart';
+import '../../widgets/commune_map_widget.dart';
 import '../../models/commune_model.dart';
+import 'package:latlong2/latlong.dart';
 
 class ProjectDetailScreen extends StatelessWidget {
   final String projectId;
@@ -44,7 +48,11 @@ class ProjectDetailScreen extends StatelessWidget {
                 children: project.audios.map((a) {
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 8),
-                    child: AudioCard(langue: a.langue),
+                    child: AudioPlayerCard(
+                      langue: a.langue,
+                      audioUrl: a.url,
+                      isAsset: false,
+                    ),
                   );
                 }).toList(),
               ),
@@ -310,8 +318,18 @@ class _LocationCard extends StatelessWidget {
   final ProjectModel project;
   const _LocationCard({required this.project});
 
+  // Coordonnées par projet (à remplacer par vraies coords depuis l'API)
+  static const Map<String, LatLng> _coords = {
+    'proj001': LatLng(5.3612, -4.0071),
+    'proj002': LatLng(5.3588, -4.0102),
+    'proj003': LatLng(5.3625, -4.0055),
+    'proj004': LatLng(5.3570, -4.0120),
+  };
+
   @override
   Widget build(BuildContext context) {
+    final coordinates = _coords[project.id] ?? const LatLng(5.3600, -4.0083);
+
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
       padding: const EdgeInsets.all(18),
@@ -340,24 +358,11 @@ class _LocationCard extends StatelessWidget {
           Text(project.localisation, style: AppTextStyles.bodyMedium),
           const SizedBox(height: 12),
 
-          // Map placeholder
-          ClipRRect(
-            borderRadius: BorderRadius.circular(AppDimens.radiusM),
-            child: Container(
-              height: 120,
-              color: AppColors.primarySurface,
-              child: Stack(
-                children: [
-                  CustomPaint(
-                    size: const Size(double.infinity, 120),
-                    painter: _MapGridPainter(),
-                  ),
-                  const Center(
-                    child: Icon(Icons.location_pin, size: 32, color: AppColors.accent),
-                  ),
-                ],
-              ),
-            ),
+          // ── Vraie carte interactive ──────────────────────────────────
+          ProjectLocationMap(
+            localisation: project.localisation,
+            coordinates: coordinates,
+            height: 160,
           ),
         ],
       ),

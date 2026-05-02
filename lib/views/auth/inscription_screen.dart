@@ -1,9 +1,9 @@
 // lib/views/auth/inscription_screen.dart
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/svg.dart';
 import 'package:go_router/go_router.dart';
 import '../../utils/app_constants.dart';
 import '../../widgets/shared_widgets.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 class InscriptionScreen extends StatefulWidget {
   const InscriptionScreen({super.key});
@@ -53,7 +53,7 @@ class _InscriptionScreenState extends State<InscriptionScreen> {
                   color: AppColors.primarySurface,
                   borderRadius: BorderRadius.circular(18),
                 ),
-                child:SvgPicture.asset(
+                child: SvgPicture.asset(
     'assets/images/logo.svg',
     colorFilter:const  ColorFilter.mode(
       AppColors.accent,

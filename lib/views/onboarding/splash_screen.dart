@@ -1,11 +1,9 @@
 // lib/views/onboarding/splash_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_svg/svg.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:go_router/go_router.dart';
 import '../../utils/app_constants.dart';
-
+import 'package:flutter_svg/flutter_svg.dart';
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
@@ -235,7 +233,6 @@ class _SplashScreenState extends State<SplashScreen>
     );
   }
 }
-
 
 class _ElephantIcon extends StatelessWidget {
   @override

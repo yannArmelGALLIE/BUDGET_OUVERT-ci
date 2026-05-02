@@ -1,6 +1,7 @@
 // lib/widgets/shared_widgets.dart
 import 'package:flutter/material.dart';
 import '../utils/app_constants.dart';
+import 'package:go_router/go_router.dart';
 
 // ─── APP BAR ───────────────────────────────────────────────────────────────
 class BudgetAppBar extends StatelessWidget implements PreferredSizeWidget {
@@ -19,6 +20,7 @@ class BudgetAppBar extends StatelessWidget implements PreferredSizeWidget {
   @override
   Widget build(BuildContext context) {
     return AppBar(
+    
       backgroundColor: AppColors.white,
       elevation: 0,
       titleSpacing: AppDimens.paddingM,

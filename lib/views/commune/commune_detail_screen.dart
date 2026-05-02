@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../utils/app_constants.dart';
 import '../../widgets/shared_widgets.dart';
+import '../../widgets/commune_map_widget.dart';
 import '../../models/commune_model.dart';
 
 class CommuneDetailScreen extends StatefulWidget {
@@ -85,7 +86,7 @@ class _CommuneDetailScreenState extends State<CommuneDetailScreen> {
           // Map section
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-            child: _CommuneMapCard(commune: _commune),
+            child: CommuneMapWidget(commune: _commune, height: 200),
           ),
 
           const SizedBox(height: 24),

@@ -1,9 +1,9 @@
 // lib/views/auth/connexion_screen.dart
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import '../../utils/app_constants.dart';
 import '../../widgets/shared_widgets.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 class ConnexionScreen extends StatefulWidget {
   const ConnexionScreen({super.key});
@@ -50,8 +50,7 @@ class _ConnexionScreenState extends State<ConnexionScreen> {
       AppColors.accent,
       BlendMode.srcIn,
     ),
-  ),
-              ),
+              ), ),
               const SizedBox(height: 8),
               Text(
                 'BudgetOuvert',

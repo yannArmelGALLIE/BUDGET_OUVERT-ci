@@ -3,16 +3,34 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'controllers/app_controller.dart';
+import 'services/audio_service.dart';
+import 'services/session_service.dart';
+import 'services/api_service.dart';
 import 'utils/app_constants.dart';
 import 'utils/app_router.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
   SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
     statusBarColor: Colors.transparent,
     statusBarIconBrightness: Brightness.dark,
   ));
+
+  // ── Initialisation des services ──────────────────────────────────
+  // 1. Persistance session (doit être avant runApp pour lire isLoggedIn)
+  await SessionService.instance.init();
+
+  // 2. Audio
+  AudioService.instance.init();
+
+  // 3. Injecter le token API sauvegardé si session active
+  final savedToken = SessionService.instance.authToken;
+  if (savedToken != null) {
+    ApiService.instance.setToken(savedToken);
+  }
+
   runApp(const BudgetOuvertApp());
 }
 
@@ -23,11 +41,17 @@ class BudgetOuvertApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => AppController()),
+        // AppController initialisé avec la session persistée
+        ChangeNotifierProvider(
+          create: (_) => AppController()..restoreSession(),
+        ),
         ChangeNotifierProvider(create: (_) => AuthController()),
         ChangeNotifierProvider(create: (_) => CommuneController()),
         ChangeNotifierProvider(create: (_) => SignalController()),
-        ChangeNotifierProvider(create: (_) => ScanController()),
+        // ScanController initialisé avec l'historique persisté
+        ChangeNotifierProvider(
+          create: (_) => ScanController()..restoreHistory(),
+        ),
       ],
       child: MaterialApp.router(
         title: 'BudgetOuvert',
@@ -39,7 +63,6 @@ class BudgetOuvertApp extends StatelessWidget {
             seedColor: AppColors.primary,
             primary: AppColors.primary,
             secondary: AppColors.accent,
-            background: AppColors.background,
             surface: AppColors.surface,
           ),
           scaffoldBackgroundColor: AppColors.background,

@@ -2,6 +2,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:provider/provider.dart';
+import '../../controllers/app_controller.dart';
 import '../../utils/app_constants.dart';
 import '../../widgets/shared_widgets.dart';
 import '../../models/signal_model.dart';
@@ -30,7 +32,7 @@ class _ScanScreenState extends State<ScanScreen>
   bool _permissionChecked = false;
   String? _errorMessage;
 
-  final List<ScanHistoryModel> _history = ScanHistoryModel.samples();
+  final List<ScanHistoryModel> _history = [];
 
   // ── Mapping QR → projectId ─────────────────────────────────────────────
   // Le QR collé sur chaque chantier contient l'une de ces valeurs.
@@ -59,6 +61,17 @@ class _ScanScreenState extends State<ScanScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+
+    // Charger l'historique persisté depuis ScanController
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final ctrl = context.read<ScanController>();
+      setState(() {
+        _history
+          ..clear()
+          ..addAll(ctrl.history);
+      });
+    });
 
     _cameraController = MobileScannerController(
       detectionSpeed: DetectionSpeed.noDuplicates,
@@ -168,14 +181,18 @@ class _ScanScreenState extends State<ScanScreen>
   }
 
   void _addToHistory(String projectId) {
-    setState(() {
-      _history.insert(0, ScanHistoryModel(
-        id: 'scan_${DateTime.now().millisecondsSinceEpoch}',
-        projetTitre: _projectTitles[projectId] ?? 'Projet $projectId',
-        localisation: 'Abidjan, Adjamé',
-        date: '• Maintenant',
-      ));
-    });
+    final entry = ScanHistoryModel(
+      id: 'scan_\${DateTime.now().millisecondsSinceEpoch}',
+      projetTitre: _projectTitles[projectId] ?? 'Projet \$projectId',
+      localisation: 'Abidjan, Adjamé',
+      date: '• Maintenant',
+    );
+    setState(() => _history.insert(0, entry));
+
+    // Persister via ScanController (SessionService)
+    if (mounted) {
+      context.read<ScanController>().addHistoryEntry(entry);
+    }
   }
 
   Future<void> _toggleTorch() async {
