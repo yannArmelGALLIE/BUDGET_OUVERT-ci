@@ -1,371 +1,219 @@
-import React, { useState } from 'react';
-import { LogOut, BarChart3, TrendingUp, Calendar, Search, Filter } from 'lucide-react';
+// @ts-nocheck
+// src/pages/MayorDashboard.jsx
+// Maire : lecture seule des données blockchain
+import { useState } from 'react';
+import { LogOut, BarChart3, TrendingUp, ExternalLink, RefreshCw } from 'lucide-react';
+import { useBlockchain } from '../lib/useBlockchain';
+import { BlockchainBanner } from '../components/BlockchainBanner';
 
-interface MayorDashboardProps {
-  onLogout: () => void;
-}
+const fmt  = n => new Intl.NumberFormat("fr-FR").format(Math.abs(n)) + " FCFA";
+const fmtM = n => (Math.abs(n)/1e6).toFixed(1) + " M";
 
-interface Transaction {
-  id: string;
-  date: string;
-  description: string;
-  category: string;
-  amount: number;
-  type: 'recette' | 'dépense';
-  department: string;
-  status: 'validé' | 'en attente' | 'rejeté';
-}
+export const MayorDashboard = ({ onLogout }) => {
+  const {
+    transactions, totalRecettes, totalDepenses, balance,
+    loading, mode, refreshTransactions, commune,
+  } = useBlockchain();
 
-export const MayorDashboard: React.FC<MayorDashboardProps> = ({ onLogout }) => {
-  const [timeFilter, setTimeFilter] = useState('month');
-  const [searchTerm, setSearchTerm] = useState('');
-  const [categoryFilter, setategoryFilter] = useState<string | null>(null);
+  const [search,   setSearch]   = useState('');
+  const [typeFilter, setType]   = useState('tous');
 
-  const transactions: Transaction[] = [
-    {
-      id: '1',
-      date: '2024-05-02',
-      description: 'Recette fiscale - Impôts locaux',
-      category: 'Fiscalité',
-      amount: 45000,
-      type: 'recette',
-      department: 'Finances',
-      status: 'validé',
-    },
-    {
-      id: '2',
-      date: '2024-05-01',
-      description: 'Subvention État - Équipements',
-      category: 'Subventions',
-      amount: 12500,
-      type: 'recette',
-      department: 'Développement',
-      status: 'validé',
-    },
-    {
-      id: '3',
-      date: '2024-04-30',
-      description: 'Dépense - Travaux rue principale',
-      category: 'Infrastructure',
-      amount: 8750,
-      type: 'dépense',
-      department: 'Travaux Publics',
-      status: 'validé',
-    },
-    {
-      id: '4',
-      date: '2024-04-28',
-      description: 'Recette - Droits d\'occupation domaine',
-      category: 'Domaine',
-      amount: 3200,
-      type: 'recette',
-      department: 'Domaine',
-      status: 'validé',
-    },
-    {
-      id: '5',
-      date: '2024-04-27',
-      description: 'Dépense - Entretien des espaces verts',
-      category: 'Maintenance',
-      amount: 2150,
-      type: 'dépense',
-      department: 'Environnement',
-      status: 'validé',
-    },
-    {
-      id: '6',
-      date: '2024-04-25',
-      description: 'Recette - Partenariats commerciaux',
-      category: 'Partenariats',
-      amount: 5600,
-      type: 'recette',
-      department: 'Partenariats',
-      status: 'en attente',
-    },
-    {
-      id: '7',
-      date: '2024-04-23',
-      description: 'Dépense - Salaires et charges',
-      category: 'Ressources Humaines',
-      amount: 125000,
-      type: 'dépense',
-      department: 'RH',
-      status: 'validé',
-    },
-    {
-      id: '8',
-      date: '2024-04-20',
-      description: 'Recette - Service publics',
-      category: 'Services',
-      amount: 7850,
-      type: 'recette',
-      department: 'Services',
-      status: 'validé',
-    },
-  ];
-
-  const filteredTransactions = transactions.filter((t) => {
-    const matchesSearch =
-      t.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      t.department.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = !categoryFilter || t.category === categoryFilter;
-    return matchesSearch && matchesCategory;
-  });
-
-  const totalRecettes = transactions
-    .filter((t) => t.type === 'recette')
-    .reduce((sum, t) => sum + t.amount, 0);
-
-  const totalDépenses = transactions
-    .filter((t) => t.type === 'dépense')
-    .reduce((sum, t) => sum + t.amount, 0);
-
-  const balance = totalRecettes - totalDépenses;
-
-  const categories = Array.from(new Set(transactions.map((t) => t.category)));
+  const filtered = transactions
+    .filter(t => typeFilter === 'tous' || t.type === typeFilter)
+    .filter(t =>
+      t.category.toLowerCase().includes(search.toLowerCase()) ||
+      t.description?.toLowerCase().includes(search.toLowerCase())
+    );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-teal-50 via-white to-emerald-50">
+    <div style={{minHeight:"100vh",background:"#f8fafc",fontFamily:"'Segoe UI',system-ui,sans-serif",
+      display:"flex",flexDirection:"column"}}>
+
+      <BlockchainBanner/>
+
       {/* Header */}
-      <header className="bg-gradient-to-r from-teal-600 to-teal-700 px-8 py-4 flex items-center justify-between shadow-lg">
-        <div className="flex items-center gap-4">
-          <img src="/image.png" alt="Logo" className="h-12 w-12 drop-shadow-lg" />
-          <div>
-            <h1 className="text-2xl font-bold text-white">Budget Ouvert - Maire</h1>
-            <p className="text-sm text-teal-100">Reporting des Finances Municipales</p>
-          </div>
+      <header style={{background:"linear-gradient(135deg,#0f766e,#0d9488)",
+        padding:"16px 32px",display:"flex",alignItems:"center",justifyContent:"space-between",
+        boxShadow:"0 4px 12px rgba(0,0,0,.15)"}}>
+        <div>
+          <h1 style={{color:"white",fontWeight:800,fontSize:22,margin:0}}>
+            Budget Ouvert — Maire
+          </h1>
+          <p style={{color:"#99f6e4",fontSize:12,margin:"4px 0 0"}}>
+            {commune} · {mode==="real" ? "Données blockchain en temps réel" : "Mode simulation"}
+          </p>
         </div>
-        <button
-          onClick={onLogout}
-          className="flex items-center gap-2 px-4 py-2 bg-white/20 text-white hover:bg-white/30 rounded-lg transition font-medium"
-        >
-          <LogOut className="h-5 w-5" />
-          Déconnexion
-        </button>
+        <div style={{display:"flex",gap:10}}>
+          <button onClick={refreshTransactions}
+            style={{display:"flex",alignItems:"center",gap:6,padding:"8px 16px",
+              background:"rgba(255,255,255,.2)",color:"white",border:"1px solid rgba(255,255,255,.3)",
+              borderRadius:9,cursor:"pointer",fontSize:13,fontWeight:600}}>
+            <RefreshCw size={14}/> Actualiser
+          </button>
+          <button onClick={onLogout}
+            style={{display:"flex",alignItems:"center",gap:6,padding:"8px 16px",
+              background:"rgba(255,255,255,.2)",color:"white",border:"1px solid rgba(255,255,255,.3)",
+              borderRadius:9,cursor:"pointer",fontSize:13,fontWeight:600}}>
+            <LogOut size={14}/> Déconnexion
+          </button>
+        </div>
       </header>
 
-      {/* Main Content */}
-      <main className="p-8">
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <StatsCard
-            title="Total Recettes"
-            amount={totalRecettes}
-            icon={<TrendingUp className="h-8 w-8" />}
-            color="from-emerald-500 to-emerald-600"
-            bgColor="bg-emerald-50"
-          />
-          <StatsCard
-            title="Total Dépenses"
-            amount={totalDépenses}
-            icon={<BarChart3 className="h-8 w-8" />}
-            color="from-orange-500 to-orange-600"
-            bgColor="bg-orange-50"
-          />
-          <StatsCard
-            title="Solde Net"
-            amount={balance}
-            icon={<Calendar className="h-8 w-8" />}
-            color={balance >= 0 ? 'from-teal-500 to-teal-600' : 'from-red-500 to-red-600'}
-            bgColor={balance >= 0 ? 'bg-teal-50' : 'bg-red-50'}
-          />
-        </div>
-
-        {/* Filters and Search */}
-        <div className="bg-white rounded-lg shadow-lg p-6 mb-6 border border-teal-100">
-          <div className="flex flex-col md:flex-row gap-4 items-end">
-            <div className="flex-1">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Recherche</label>
-              <div className="relative">
-                <Search className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Rechercher par description ou département..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none"
-                />
+      <main style={{flex:1,padding:32}}>
+        {/* KPIs */}
+        <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:20,marginBottom:28}}>
+          {[
+            {label:"Total Recettes",  value:fmtM(totalRecettes), sub:`${transactions.filter(t=>t.type==="recette").length} transactions`, color:"#10b981",bg:"#f0fdf4",icon:<TrendingUp size={24}/>},
+            {label:"Total Dépenses",  value:fmtM(totalDepenses), sub:`${transactions.filter(t=>t.type==="dépense").length} transactions`, color:"#ef4444",bg:"#fef2f2",icon:<BarChart3 size={24}/>},
+            {label:"Solde Net",       value:fmtM(balance),       sub:`${balance>=0?"Excédent":"Déficit"} communal`, color:balance>=0?"#0d9488":"#ef4444",bg:balance>=0?"#f0fdfa":"#fef2f2",icon:<BarChart3 size={24}/>},
+          ].map((k,i)=>(
+            <div key={i} style={{background:k.bg,borderRadius:16,padding:"22px 24px",
+              border:"1px solid #e2e8f0",boxShadow:"0 2px 8px rgba(0,0,0,.04)"}}>
+              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
+                <span style={{fontSize:12,color:"#6b7280",fontWeight:600,textTransform:"uppercase",letterSpacing:".05em"}}>
+                  {k.label}
+                </span>
+                <div style={{color:k.color}}>{k.icon}</div>
               </div>
+              <div style={{fontSize:26,fontWeight:900,color:k.color}}>{k.value}</div>
+              <div style={{fontSize:11,color:"#94a3b8",marginTop:6}}>{k.sub}</div>
             </div>
-            <div className="flex-1">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                <Filter className="inline h-4 w-4 mr-2" />
-                Catégorie
-              </label>
-              <select
-                value={categoryFilter || ''}
-                onChange={(e) => setategoryFilter(e.target.value || null)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none"
-              >
-                <option value="">Toutes les catégories</option>
-                {categories.map((cat) => (
-                  <option key={cat} value={cat}>
-                    {cat}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Période</label>
-              <select
-                value={timeFilter}
-                onChange={(e) => setTimeFilter(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none"
-              >
-                <option value="week">Cette semaine</option>
-                <option value="month">Ce mois</option>
-                <option value="quarter">Ce trimestre</option>
-                <option value="year">Cette année</option>
-              </select>
-            </div>
-          </div>
+          ))}
         </div>
 
-        {/* Transactions Table */}
-        <div className="bg-white rounded-lg shadow-lg overflow-hidden border border-teal-100">
-          <div className="p-6 border-b border-gray-200">
-            <h2 className="text-xl font-bold text-gray-900">Détail des Transactions</h2>
-            <p className="text-sm text-gray-600 mt-1">
-              {filteredTransactions.length} transaction{filteredTransactions.length > 1 ? 's' : ''} trouvée
-              {filteredTransactions.length > 1 ? 's' : ''}
-            </p>
+        {/* Filtres */}
+        <div style={{display:"flex",gap:10,marginBottom:16,alignItems:"center"}}>
+          <div style={{display:"flex",gap:6}}>
+            {[
+              {id:"tous",    label:"Toutes"},
+              {id:"recette", label:"▲ Recettes"},
+              {id:"dépense", label:"▼ Dépenses"},
+            ].map(f => (
+              <button key={f.id} onClick={()=>setType(f.id)}
+                style={{padding:"7px 18px",borderRadius:20,border:"1px solid #e2e8f0",cursor:"pointer",
+                  fontSize:12,fontWeight:600,
+                  background:typeFilter===f.id?"#134e4a":"white",
+                  color:typeFilter===f.id?"white":"#374151",transition:"all .15s"}}>
+                {f.label}
+              </button>
+            ))}
+          </div>
+          <input value={search} onChange={e=>setSearch(e.target.value)}
+            placeholder="Rechercher une transaction..."
+            style={{marginLeft:"auto",padding:"8px 16px",borderRadius:10,
+              border:"1px solid #e2e8f0",fontSize:13,outline:"none",width:260}}/>
+        </div>
+
+        {/* Table */}
+        <div style={{background:"white",borderRadius:16,border:"1px solid #e2e8f0",
+          overflow:"hidden",boxShadow:"0 2px 8px rgba(0,0,0,.04)"}}>
+          <div style={{padding:"16px 24px",borderBottom:"1px solid #f1f5f9",
+            display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+            <div>
+              <h2 style={{fontSize:16,fontWeight:700,color:"#134e4a",margin:0}}>
+                Détail des Transactions — {commune}
+              </h2>
+              <p style={{fontSize:12,color:"#94a3b8",margin:"4px 0 0"}}>
+                {filtered.length} résultat{filtered.length>1?"s":""} ·{" "}
+                {mode==="real" ? "⛓ Données immuables sur Polygon" : "⚡ Simulation locale"}
+              </p>
+            </div>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50 border-b border-gray-200">
-                <tr>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Date</th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Description</th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Catégorie</th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Département</th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Type</th>
-                  <th className="px-6 py-3 text-right text-sm font-semibold text-gray-900">Montant</th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Statut</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredTransactions.length === 0 ? (
+          {loading && (
+            <div style={{padding:40,textAlign:"center",color:"#94a3b8",fontSize:13}}>
+              Chargement des données blockchain...
+            </div>
+          )}
+
+          {!loading && filtered.length === 0 && (
+            <div style={{padding:40,textAlign:"center",color:"#94a3b8",fontSize:13}}>
+              Aucune transaction à afficher
+            </div>
+          )}
+
+          {filtered.length > 0 && (
+            <div style={{overflowX:"auto"}}>
+              <table style={{width:"100%",borderCollapse:"collapse"}}>
+                <thead style={{background:"#f8fafc",borderBottom:"2px solid #e2e8f0"}}>
                   <tr>
-                    <td colSpan={7} className="px-6 py-8 text-center text-gray-600">
-                      Aucune transaction trouvée
-                    </td>
+                    {["Date","Description","Catégorie","Type","Montant (FCFA)","Preuve blockchain"].map(h=>(
+                      <th key={h} style={{padding:"11px 16px",textAlign:"left",fontSize:11,
+                        fontWeight:700,color:"#6b7280",textTransform:"uppercase",letterSpacing:".04em"}}>
+                        {h}
+                      </th>
+                    ))}
                   </tr>
-                ) : (
-                  filteredTransactions.map((transaction) => (
-                    <tr key={transaction.id} className="border-b border-gray-200 hover:bg-gray-50 transition">
-                      <td className="px-6 py-4 text-sm text-gray-900">
-                        {new Date(transaction.date).toLocaleDateString('fr-FR')}
+                </thead>
+                <tbody>
+                  {filtered.map((t,i)=>(
+                    <tr key={t.id} style={{borderBottom:"1px solid #f1f5f9",
+                      background:i%2===0?"white":"#fafafa",
+                      transition:"background .1s"}}>
+                      <td style={{padding:"12px 16px",fontSize:12,color:"#6b7280"}}>{t.date}</td>
+                      <td style={{padding:"12px 16px",fontSize:13,fontWeight:600,color:"#374151"}}>
+                        {t.description || t.category}
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-900 font-medium">{transaction.description}</td>
-                      <td className="px-6 py-4 text-sm">
-                        <span className="px-3 py-1 bg-teal-100 text-teal-800 rounded-full text-xs font-medium">
-                          {transaction.category}
+                      <td style={{padding:"12px 16px"}}>
+                        <span style={{padding:"3px 10px",background:"#f0fdfa",color:"#0d9488",
+                          borderRadius:20,fontSize:11,fontWeight:600}}>
+                          {t.category}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-600">{transaction.department}</td>
-                      <td className="px-6 py-4 text-sm">
-                        <span
-                          className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${
-                            transaction.type === 'recette'
-                              ? 'bg-emerald-100 text-emerald-800'
-                              : 'bg-orange-100 text-orange-800'
-                          }`}
-                        >
-                          {transaction.type === 'recette' ? '+ Recette' : '- Dépense'}
+                      <td style={{padding:"12px 16px"}}>
+                        <span style={{padding:"3px 10px",borderRadius:20,fontSize:11,fontWeight:700,
+                          background:t.type==="recette"?"#dcfce7":"#fee2e2",
+                          color:t.type==="recette"?"#166534":"#991b1b"}}>
+                          {t.type==="recette"?"▲ Recette":"▼ Dépense"}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-right text-sm font-semibold text-gray-900">
-                        <span className={transaction.type === 'recette' ? 'text-emerald-600' : 'text-orange-600'}>
-                          {transaction.type === 'recette' ? '+' : '-'} {transaction.amount.toLocaleString('fr-FR')} €
-                        </span>
+                      <td style={{padding:"12px 16px",fontSize:13,fontWeight:800,textAlign:"right",
+                        color:t.type==="recette"?"#10b981":"#ef4444"}}>
+                        {t.type==="recette"?"+":"-"}{fmt(t.amount)}
                       </td>
-                      <td className="px-6 py-4 text-sm">
-                        <StatusBadge status={transaction.status} />
+                      <td style={{padding:"12px 16px"}}>
+                        {t.hash && t.hash.length > 20 ? (
+                          <a href={`https://amoy.polygonscan.com/tx/${t.hash}`}
+                            target="_blank" rel="noopener noreferrer"
+                            style={{color:"#0d9488",fontSize:11,display:"flex",
+                              alignItems:"center",gap:4,textDecoration:"none",fontFamily:"monospace"}}>
+                            {t.hash.slice(0,10)}... <ExternalLink size={10}/>
+                          </a>
+                        ) : (
+                          <span style={{fontSize:11,color:"#e2e8f0",fontStyle:"italic"}}>simulation</span>
+                        )}
                       </td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+                  ))}
+                </tbody>
+              </table>
 
-          {/* Summary Footer */}
-          <div className="bg-gray-50 px-6 py-4 border-t border-gray-200 grid grid-cols-3 gap-4">
-            <div>
-              <p className="text-xs text-gray-600 uppercase font-semibold">Recettes affichées</p>
-              <p className="text-lg font-bold text-emerald-600">
-                +{filteredTransactions
-                  .filter((t) => t.type === 'recette')
-                  .reduce((sum, t) => sum + t.amount, 0)
-                  .toLocaleString('fr-FR')} €
-              </p>
+              {/* Footer */}
+              <div style={{background:"#f8fafc",padding:"14px 24px",borderTop:"2px solid #e2e8f0",
+                display:"flex",gap:32,alignItems:"center"}}>
+                <div>
+                  <div style={{fontSize:10,color:"#6b7280",fontWeight:600,textTransform:"uppercase"}}>Recettes</div>
+                  <div style={{fontSize:15,fontWeight:800,color:"#10b981"}}>
+                    +{fmt(filtered.filter(t=>t.type==="recette").reduce((s,t)=>s+t.amount,0))}
+                  </div>
+                </div>
+                <div>
+                  <div style={{fontSize:10,color:"#6b7280",fontWeight:600,textTransform:"uppercase"}}>Dépenses</div>
+                  <div style={{fontSize:15,fontWeight:800,color:"#ef4444"}}>
+                    -{fmt(filtered.filter(t=>t.type==="dépense").reduce((s,t)=>s+t.amount,0))}
+                  </div>
+                </div>
+                <div style={{marginLeft:"auto"}}>
+                  <div style={{fontSize:10,color:"#6b7280",fontWeight:600,textTransform:"uppercase"}}>Solde net</div>
+                  <div style={{fontSize:15,fontWeight:800,color:balance>=0?"#0d9488":"#ef4444"}}>
+                    {balance>=0?"+":""}{fmt(balance)}
+                  </div>
+                </div>
+              </div>
             </div>
-            <div>
-              <p className="text-xs text-gray-600 uppercase font-semibold">Dépenses affichées</p>
-              <p className="text-lg font-bold text-orange-600">
-                -{filteredTransactions
-                  .filter((t) => t.type === 'dépense')
-                  .reduce((sum, t) => sum + t.amount, 0)
-                  .toLocaleString('fr-FR')} €
-              </p>
-            </div>
-            <div>
-              <p className="text-xs text-gray-600 uppercase font-semibold">Solde filtré</p>
-              <p
-                className={`text-lg font-bold ${
-                  filteredTransactions.reduce((sum, t) => sum + (t.type === 'recette' ? t.amount : -t.amount), 0) >= 0
-                    ? 'text-teal-600'
-                    : 'text-red-600'
-                }`}
-              >
-                {filteredTransactions.reduce((sum, t) => sum + (t.type === 'recette' ? t.amount : -t.amount), 0) >= 0
-                  ? '+'
-                  : '-'}
-                {Math.abs(
-                  filteredTransactions.reduce((sum, t) => sum + (t.type === 'recette' ? t.amount : -t.amount), 0)
-                ).toLocaleString('fr-FR')}{' '}
-                €
-              </p>
-            </div>
-          </div>
+          )}
         </div>
       </main>
     </div>
   );
-};
-
-interface StatsCardProps {
-  title: string;
-  amount: number;
-  icon: React.ReactNode;
-  color: string;
-  bgColor: string;
-}
-
-const StatsCard: React.FC<StatsCardProps> = ({ title, amount, icon, color, bgColor }) => (
-  <div className={`${bgColor} rounded-lg p-6 border border-gray-200`}>
-    <div className="flex items-center justify-between">
-      <div>
-        <p className="text-gray-600 text-sm font-medium">{title}</p>
-        <p className="text-3xl font-bold text-gray-900 mt-2">{amount.toLocaleString('fr-FR')} €</p>
-      </div>
-      <div className={`bg-gradient-to-br ${color} p-3 rounded-lg text-white`}>{icon}</div>
-    </div>
-  </div>
-);
-
-interface StatusBadgeProps {
-  status: 'validé' | 'en attente' | 'rejeté';
-}
-
-const StatusBadge: React.FC<StatusBadgeProps> = ({ status }) => {
-  const statusConfig = {
-    validé: { bg: 'bg-green-100', text: 'text-green-800', label: 'Validé' },
-    'en attente': { bg: 'bg-yellow-100', text: 'text-yellow-800', label: 'En attente' },
-    rejeté: { bg: 'bg-red-100', text: 'text-red-800', label: 'Rejeté' },
-  };
-
-  const config = statusConfig[status];
-  return <span className={`px-3 py-1 ${config.bg} ${config.text} rounded-full text-xs font-medium`}>{config.label}</span>;
 };
