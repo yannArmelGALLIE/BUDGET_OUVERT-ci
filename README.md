@@ -1,30 +1,22 @@
-# 🌐 BudgetOuvert CI — Documentation API Backend
+# 🏛️ BudgetOuvert CI — Documentation API Backend
 
-> API REST de communication entre le frontend et le smart contract BudgetRegistry sur Hardhat Local
+> API REST de communication entre le frontend et le smart contract BudgetRegistry
+> **Déployé sur Railway** — accessible publiquement
 
 ---
 
-## Prérequis
+## 🌍 URL de Production
 
-Avant d'utiliser l'API, s'assurer que :
-
-```bash
-# Terminal 1 — Blockchain locale
-npx hardhat node
-
-# Terminal 2 — Déployer le contrat
-npx hardhat run scripts/deploy.js --network localhost
-
-# Terminal 3 — Lancer le serveur API
-npm run dev   # ou node server.js
+```
+https://budgetouvert-ci-production.up.railway.app
 ```
 
 ---
 
-## Base URL
+## Base URL des endpoints
 
 ```
-http://localhost:3000/api/budget
+https://budgetouvert-ci-production.up.railway.app/api/budget
 ```
 
 ---
@@ -36,7 +28,7 @@ http://localhost:3000/api/budget
 ### 1. Enregistrer une recette
 
 ```
-POST http://localhost:3000/api/budget/revenue
+POST https://budgetouvert-ci-production.up.railway.app/api/budget/revenue
 ```
 
 **Headers**
@@ -69,7 +61,7 @@ Content-Type: application/json
 ### 2. Enregistrer une dépense
 
 ```
-POST http://localhost:3000/api/budget/expense
+POST https://budgetouvert-ci-production.up.railway.app/api/budget/expense
 ```
 
 **Headers**
@@ -102,7 +94,7 @@ Content-Type: application/json
 ### 3. Voir les transactions d'une commune
 
 ```
-GET http://localhost:3000/api/budget/transactions/Commune Cocody
+GET https://budgetouvert-ci-production.up.railway.app/api/budget/transactions/Commune Cocody
 ```
 
 **Réponse (200)**
@@ -144,14 +136,14 @@ GET http://localhost:3000/api/budget/transactions/Commune Cocody
 ### 4. Voir le solde d'une commune
 
 ```
-GET http://localhost:3000/api/budget/balance/Commune Cocody
+GET https://budgetouvert-ci-production.up.railway.app/api/budget/balance/Commune Cocody
 ```
 
 **Réponse (200)**
 ```json
 {
-  "commune": "Commune Cocody",
-  "balance": 38000000,
+  "commune":  "Commune Cocody",
+  "balance":  38000000,
   "currency": "FCFA"
 }
 ```
@@ -164,7 +156,7 @@ GET http://localhost:3000/api/budget/balance/Commune Cocody
 ### 5. Nombre de transactions
 
 ```
-GET http://localhost:3000/api/budget/count/Commune Cocody
+GET https://budgetouvert-ci-production.up.railway.app/api/budget/count/Commune Cocody
 ```
 
 **Réponse (200)**
@@ -180,7 +172,7 @@ GET http://localhost:3000/api/budget/count/Commune Cocody
 ### 6. Total global (toutes communes)
 
 ```
-GET http://localhost:3000/api/budget/total
+GET https://budgetouvert-ci-production.up.railway.app/api/budget/total
 ```
 
 **Réponse (200)**
@@ -196,7 +188,7 @@ GET http://localhost:3000/api/budget/total
 ### 7. Liste de toutes les communes
 
 ```
-GET http://localhost:3000/api/budget/communes
+GET https://budgetouvert-ci-production.up.railway.app/api/budget/communes
 ```
 
 **Réponse (200)**
@@ -221,7 +213,7 @@ GET http://localhost:3000/api/budget/communes
 | 200  | Succès                                             |
 | 400  | Paramètre manquant ou invalide                     |
 | 403  | Wallet non autorisé (rôle COMMUNE_ADMIN manquant)  |
-| 500  | Erreur serveur / nœud Hardhat non disponible       |
+| 500  | Erreur serveur / nœud blockchain non disponible    |
 
 **Exemple d'erreur (403)**
 ```json
@@ -235,7 +227,7 @@ GET http://localhost:3000/api/budget/communes
 ```json
 {
   "success": false,
-  "error":   "Impossible de contacter le nœud Hardhat — vérifiez que npx hardhat node tourne"
+  "error":   "Impossible de contacter le nœud blockchain"
 }
 ```
 
@@ -243,36 +235,16 @@ GET http://localhost:3000/api/budget/communes
 
 ## Tester avec Postman
 
+```
 1. Ouvrir Postman
-2. Importer les requêtes ci-dessus
-3. Sélectionner `Body → raw → JSON`
-4. Lancer les requêtes dans l'ordre :
-   - D'abord `POST /revenue` pour créer une recette
-   - Puis `POST /expense` pour créer une dépense
-   - Ensuite `GET /transactions/Commune Cocody` pour vérifier
-
----
-
-## Variables d'environnement
-
-Créer un fichier `.env` à la racine du serveur :
-
-```env
-# Adresse du contrat déployé
-CONTRACT_ADDRESS=0x5FbDB2315678afecb367f032d93F642f64180aa3
-
-# RPC du nœud Hardhat local
-RPC_URL=http://127.0.0.1:8545
-
-# Chain ID Hardhat
-CHAIN_ID=31337
-
-# Clé privée du wallet déployeur (Account #0 Hardhat)
-# ⚠️ Ne jamais committer ce fichier
-PRIVATE_KEY=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
-
-# Port du serveur
-PORT=3000
+2. Créer une nouvelle requête
+3. Coller l'URL Railway ci-dessus
+4. Pour les POST : Body → raw → JSON
+5. Lancer les requêtes dans l'ordre :
+   → POST /revenue  (créer une recette)
+   → POST /expense  (créer une dépense)
+   → GET  /transactions/Commune Cocody  (vérifier)
+   → GET  /balance/Commune Cocody       (voir le solde)
 ```
 
 ---
@@ -280,29 +252,44 @@ PORT=3000
 ## Architecture de communication
 
 ```
-Frontend React (port 5173)
+Navigateur / App Mobile
         │
-        │ fetch() / axios
+        │ HTTPS
         ▼
-Serveur Express (port 3000)   ← CE FICHIER DOCUMENTE CETTE COUCHE
+https://budgetouvert-ci-production.up.railway.app
+(Serveur Express — Railway)
         │
-        │ ethers.js
+        │ ethers.js + JSON-RPC
         ▼
 BudgetRegistry.sol
+(Smart contract Polygon Amoy)
         │
-        │ JSON-RPC
+        │ Réseau Polygon
         ▼
-Nœud Hardhat (port 8545)
+Blockchain publique — données immuables
 ```
 
 ---
 
 ## Wallet autorisé (COMMUNE_ADMIN)
 
-Le wallet qui peut enregistrer des transactions est le **Account #0 de Hardhat** :
+Le wallet qui peut enregistrer des transactions doit avoir le rôle `COMMUNE_ADMIN` accordé lors du déploiement :
 
-> Ce rôle a été accordé automatiquement lors du déploiement via `scripts/deploy.js`
+```
+Adresse : 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
+```
 
 ---
 
-*BudgetOuvert CI — MIABE Hackathon 2026 | CI-01 | feat/smart-contract*
+## Liens utiles
+
+| Ressource | Lien |
+|---|---|
+| 🌍 API Production | https://budgetouvert-ci-production.up.railway.app |
+| 📦 Repository GitHub | https://github.com/yannArmelGALLIE/BUDGET_OUVERT-ci |
+| 🔍 Polygonscan Amoy | https://amoy.polygonscan.com |
+| 🏆 MIABE Hackathon | https://www.miabehackathon.com |
+
+---
+
+*BudgetOuvert CI — MIABE Hackathon 2026 | CI-01 | ODD 11 · ODD 16 · ODD 17*
