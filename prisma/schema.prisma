@@ -1,0 +1,36 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+}
+
+// S'inspire de enum TxType { REVENUE, EXPENSE }
+enum TxType {
+  REVENUE
+  EXPENSE
+}
+
+model Transaction {
+  id          Int      @id @default(autoincrement()) // Correspond à _transactionCounter
+  communeName String   // Correspond à la clé du mapping communeTransactions
+  txType      TxType
+  category    String
+  amount      BigInt   // Les montants en FCFA sont souvent gros
+  timestamp   DateTime @default(now()) // Correspond au block.timestamp
+  description String
+  recorder    String   // Adresse wallet (msg.sender)
+}
+
+// Pour tes modèles Dart (CommuneModel, ProjectModel)
+model Commune {
+  id             String    @id
+  name           String    @unique
+  region         String
+  budgetTotal    BigInt    @default(0)
+  budgetConsomme BigInt    @default(0)
+  tauxExecution  Float     @default(0)
+  visionLabel    String?
+}
