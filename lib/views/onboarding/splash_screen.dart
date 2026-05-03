@@ -4,6 +4,10 @@ import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import '../../utils/app_constants.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+// Imports ajoutés en haut
+import 'package:provider/provider.dart';
+import '../../services/session_service.dart';
+
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
@@ -18,6 +22,26 @@ class _SplashScreenState extends State<SplashScreen>
   late Animation<double> _logoOpacity;
   late Animation<double> _textOpacity;
   late Animation<double> _subtitleOpacity;
+
+// Nouvelle méthode ajoutée avant dispose()
+  Future<void> _navigateAfterSplash() async {
+    // Attendre la durée totale du splash (animation 2s + pause 1s)
+    await Future.delayed(const Duration(milliseconds: 3000));
+    if (!mounted) return;
+
+    final session = context.read<SessionService>();
+
+    if (!session.hasSeenOnboarding) {
+      // Première ouverture : montrer l'onboarding
+      context.go('/onboarding');
+    } else if (session.isLoggedIn) {
+      // Déjà connecté : aller directement à l'accueil
+      context.go('/accueil');
+    } else {
+      // Onboarding vu mais pas connecté : aller à la connexion
+      context.go('/connexion');
+    }
+  }
 
   @override
   void initState() {
@@ -62,9 +86,7 @@ class _SplashScreenState extends State<SplashScreen>
 
     _controller.forward();
 
-    Future.delayed(const Duration(milliseconds: 3000), () {
-      if (mounted) context.go('/onboarding');
-    });
+    _navigateAfterSplash();
   }
 
   @override
@@ -237,16 +259,14 @@ class _SplashScreenState extends State<SplashScreen>
 class _ElephantIcon extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-   
-
-return SizedBox(
-  child:SvgPicture.asset(
-    'assets/images/logo.svg',
-    colorFilter:const  ColorFilter.mode(
-      AppColors.accent,
-      BlendMode.srcIn,
-    ),
-  ),
-);
+    return SizedBox(
+      child: SvgPicture.asset(
+        'assets/images/logo.svg',
+        colorFilter: const ColorFilter.mode(
+          AppColors.accent,
+          BlendMode.srcIn,
+        ),
+      ),
+    );
   }
 }

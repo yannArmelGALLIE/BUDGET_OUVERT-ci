@@ -12,7 +12,6 @@ class MainScaffold extends StatelessWidget {
     final location = GoRouterState.of(context).uri.toString();
     if (location.startsWith('/communes')) return 1;
     if (location.startsWith('/scan')) return 2;
-    if (location.startsWith('/signal')) return 3;
     return 0;
   }
 
@@ -38,7 +37,6 @@ class _BudgetNavBar extends StatelessWidget {
       _NavItem(icon: Icons.home_outlined, activeIcon: Icons.home, label: 'Accueil', path: '/accueil'),
       _NavItem(icon: Icons.location_city_outlined, activeIcon: Icons.location_city, label: 'Communes', path: '/communes'),
       _NavItem(icon: Icons.qr_code_scanner, activeIcon: Icons.qr_code_scanner, label: 'Scan', path: '/scan'),
-      _NavItem(icon: Icons.flag_outlined, activeIcon: Icons.flag, label: 'Signal', path: '/signal'),
     ];
 
     return Container(

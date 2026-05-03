@@ -10,7 +10,6 @@ import '../views/home/home_screen.dart';
 import '../views/commune/commune_detail_screen.dart';
 import '../views/scan/scan_screen.dart';
 import '../views/project/project_detail_screen.dart';
-import '../views/signal/signal_screen.dart';
 import '../widgets/main_scaffold.dart';
 
 final GoRouter appRouter = GoRouter(
@@ -50,10 +49,6 @@ final GoRouter appRouter = GoRouter(
         GoRoute(
           path: '/scan',
           builder: (context, state) => const ScanScreen(),
-        ),
-        GoRoute(
-          path: '/signal',
-          builder: (context, state) => const SignalScreen(),
         ),
         GoRoute(
           path: '/projet/:id',

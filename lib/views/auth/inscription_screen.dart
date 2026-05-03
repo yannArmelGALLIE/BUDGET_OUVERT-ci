@@ -18,8 +18,16 @@ class _InscriptionScreenState extends State<InscriptionScreen> {
   String _selectedLangue = 'Baoulé';
 
   final List<String> _communes = [
-    'Adjamé', 'Abobo', 'Attécoubé', 'Cocody', 'Koumassi',
-    'Marcory', 'Plateau', 'Port-Bouët', 'Treichville', 'Yopougon',
+    'Adjamé',
+    'Abobo',
+    'Attécoubé',
+    'Cocody',
+    'Koumassi',
+    'Marcory',
+    'Plateau',
+    'Port-Bouët',
+    'Treichville',
+    'Yopougon',
   ];
 
   final List<String> _langues = ['Baoulé', 'Dioula', 'Bété'];
@@ -53,13 +61,15 @@ class _InscriptionScreenState extends State<InscriptionScreen> {
                   color: AppColors.primarySurface,
                   borderRadius: BorderRadius.circular(18),
                 ),
-                child: SvgPicture.asset(
-    'assets/images/logo.svg',
-    colorFilter:const  ColorFilter.mode(
-      AppColors.accent,
-      BlendMode.srcIn,
-    ),
-  ),
+                child: SizedBox(
+                  child: SvgPicture.asset(
+                    'assets/images/logo.svg',
+                    colorFilter: const ColorFilter.mode(
+                      AppColors.accent,
+                      BlendMode.srcIn,
+                    ),
+                  ),
+                ),
               ),
               const SizedBox(height: 24),
 
@@ -128,7 +138,8 @@ class _InscriptionScreenState extends State<InscriptionScreen> {
                 padding: const EdgeInsets.symmetric(vertical: 10),
                 child: Row(
                   children: [
-                    const Icon(Icons.lock_outline, size: 13, color: AppColors.textSecondary),
+                    const Icon(Icons.lock_outline,
+                        size: 13, color: AppColors.textSecondary),
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(
@@ -183,7 +194,8 @@ class _InscriptionScreenState extends State<InscriptionScreen> {
               // Language preference
               Text(
                 'Langue préférée pour l\'audio :',
-                style: AppTextStyles.caption.copyWith(fontWeight: FontWeight.w600),
+                style:
+                    AppTextStyles.caption.copyWith(fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 10),
               Row(
@@ -253,7 +265,9 @@ class _CommuneDropdown extends StatelessWidget {
           ),
           isExpanded: true,
           icon: const Icon(Icons.expand_more, color: AppColors.textSecondary),
-          items: communes.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
+          items: communes
+              .map((c) => DropdownMenuItem(value: c, child: Text(c)))
+              .toList(),
           onChanged: onChanged,
           style: AppTextStyles.bodyLarge,
         ),

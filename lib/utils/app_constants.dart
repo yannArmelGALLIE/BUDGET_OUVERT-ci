@@ -156,7 +156,7 @@ class AppStrings {
 
   static const String onboarding3Title = 'Votre Voix Compte';
   static const String onboarding3Body =
-      'Scannez les chantiers pour voir les budgets ou signalez un problème en un clic. Devenez acteur de votre commune.';
+      'Scannez les chantiers QR pour voir le budget en temps réel. Accédez aux données blockchain de votre commune.';
 
   // Auth
   static const String createAccount = 'Créer un compte';
@@ -169,5 +169,4 @@ class AppStrings {
   static const String navAccueil = 'Accueil';
   static const String navCommunes = 'Communes';
   static const String navScan = 'Scan';
-  static const String navSignal = 'Signal';
 }

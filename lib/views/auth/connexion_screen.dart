@@ -44,13 +44,16 @@ class _ConnexionScreenState extends State<ConnexionScreen> {
                   color: AppColors.primarySurface,
                   borderRadius: BorderRadius.circular(22),
                 ),
-                child: SvgPicture.asset(
-    'assets/images/logo.svg',
-    colorFilter:const  ColorFilter.mode(
-      AppColors.accent,
-      BlendMode.srcIn,
-    ),
-              ), ),
+                child: SizedBox(
+                  child: SvgPicture.asset(
+                    'assets/images/logo.svg',
+                    colorFilter: const ColorFilter.mode(
+                      AppColors.accent,
+                      BlendMode.srcIn,
+                    ),
+                  ),
+                ),
+              ),
               const SizedBox(height: 8),
               Text(
                 'BudgetOuvert',
@@ -104,7 +107,8 @@ class _ConnexionScreenState extends State<ConnexionScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text("Pas encore de compte ? ", style: AppTextStyles.bodyMedium),
+                  Text("Pas encore de compte ? ",
+                      style: AppTextStyles.bodyMedium),
                   GestureDetector(
                     onTap: () => context.go('/inscription'),
                     child: Text(

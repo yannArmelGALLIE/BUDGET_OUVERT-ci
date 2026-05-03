@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
 import '../../utils/app_constants.dart';
 import '../../widgets/shared_widgets.dart';
+import 'package:provider/provider.dart';
+import '../../services/session_service.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
@@ -34,25 +36,31 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     _OnboardingPage(
       title: 'Votre Voix\nCompte',
       body:
-          'Scannez les chantiers pour voir les budgets ou signalez un problème en un clic. Devenez acteur de votre commune.',
+          'Scannez les chantiers QR pour voir le budget en temps réel. Accédez aux données blockchain de votre commune.',
       icon: Icons.qr_code_scanner,
       illustrationKey: 'action',
       isLast: true,
     ),
   ];
 
-  void _next() {
+  // _next() et _skip() remplacés par ces 3 méthodes
+  Future<void> _next() async {
     if (_currentPage < _pages.length - 1) {
       _pageController.nextPage(
         duration: const Duration(milliseconds: 400),
         curve: Curves.easeInOut,
       );
     } else {
-      context.go('/connexion');
+      await _markAndNavigate();
     }
   }
 
-  void _skip() => context.go('/connexion');
+  Future<void> _skip() => _markAndNavigate();
+
+  Future<void> _markAndNavigate() async {
+    await context.read<SessionService>().markOnboardingSeen();
+    if (mounted) context.go('/connexion');
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -82,7 +90,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 controller: _pageController,
                 itemCount: _pages.length,
                 onPageChanged: (i) => setState(() => _currentPage = i),
-                itemBuilder: (context, i) => _OnboardingPageWidget(page: _pages[i]),
+                itemBuilder: (context, i) =>
+                    _OnboardingPageWidget(page: _pages[i]),
               ),
             ),
 
@@ -105,7 +114,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   ),
                   const SizedBox(height: 28),
                   PrimaryButton(
-                    label: _currentPage == _pages.length - 1 ? 'Commencer' : 'Suivant',
+                    label: _currentPage == _pages.length - 1
+                        ? 'Commencer'
+                        : 'Suivant',
                     trailingIcon: Icons.arrow_forward,
                     onPressed: _next,
                   ),
@@ -158,13 +169,15 @@ class _OnboardingPageWidget extends StatelessWidget {
           // Text content
           Text(
             page.title,
-            style: AppTextStyles.displayMedium.copyWith(color: AppColors.primary),
+            style:
+                AppTextStyles.displayMedium.copyWith(color: AppColors.primary),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 12),
           Text(
             page.body,
-            style: AppTextStyles.bodyLarge.copyWith(color: AppColors.textSecondary),
+            style: AppTextStyles.bodyLarge
+                .copyWith(color: AppColors.textSecondary),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 24),
@@ -240,19 +253,26 @@ class _TransparencyIllustration extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Container(
-                            width: 80, height: 8, color: AppColors.primary.withOpacity(0.2),
+                            width: 80,
+                            height: 8,
+                            color: AppColors.primary.withOpacity(0.2),
                             margin: const EdgeInsets.only(bottom: 4)),
-                        Container(width: 50, height: 6, color: AppColors.divider),
+                        Container(
+                            width: 50, height: 6, color: AppColors.divider),
                       ],
                     ),
                   ],
                 ),
                 const SizedBox(height: 16),
                 Container(
-                    width: double.infinity, height: 8, color: AppColors.divider,
+                    width: double.infinity,
+                    height: 8,
+                    color: AppColors.divider,
                     margin: const EdgeInsets.only(bottom: 6)),
                 Container(
-                    width: 160, height: 8, color: AppColors.divider,
+                    width: 160,
+                    height: 8,
+                    color: AppColors.divider,
                     margin: const EdgeInsets.only(bottom: 12)),
                 Container(
                   height: 6,
@@ -317,7 +337,8 @@ class _TrustIllustration extends StatelessWidget {
             children: [
               _ShieldIcon(label: 'ÉCHANGÉ', icon: Icons.swap_horiz),
               const SizedBox(width: 12),
-              _ShieldIcon(label: 'CONSENSUS', icon: Icons.verified, highlighted: true),
+              _ShieldIcon(
+                  label: 'CONSENSUS', icon: Icons.verified, highlighted: true),
               const SizedBox(width: 12),
               _ShieldIcon(label: 'ROUTÉ', icon: Icons.route),
             ],
@@ -416,7 +437,8 @@ class _ActionIllustration extends StatelessWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.qr_code_scanner, size: 60, color: AppColors.white),
+                const Icon(Icons.qr_code_scanner,
+                    size: 60, color: AppColors.white),
                 const SizedBox(height: 10),
                 Text(
                   'Scanner le QR',
@@ -436,7 +458,8 @@ class _ActionIllustration extends StatelessWidget {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.account_balance_wallet, size: 14, color: AppColors.white),
+                const Icon(Icons.account_balance_wallet,
+                    size: 14, color: AppColors.white),
                 const SizedBox(width: 6),
                 Text(
                   'Solde disponible: 40.000.000 FCFA',
@@ -454,11 +477,6 @@ class _ActionIllustration extends StatelessWidget {
             children: [
               _FeatureBadge(icon: Icons.qr_code, label: 'Scan QR'),
               const SizedBox(width: 12),
-              _FeatureBadge(
-                icon: Icons.flag,
-                label: 'Signalement',
-                highlighted: true,
-              ),
             ],
           ),
         ],
@@ -483,7 +501,8 @@ class _FeatureBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: highlighted ? AppColors.accent.withOpacity(0.15) : AppColors.white,
+        color:
+            highlighted ? AppColors.accent.withOpacity(0.15) : AppColors.white,
         borderRadius: BorderRadius.circular(AppDimens.radiusM),
         border: Border.all(
           color: highlighted ? AppColors.accent : AppColors.divider,
@@ -492,7 +511,8 @@ class _FeatureBadge extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 14,
+          Icon(icon,
+              size: 14,
               color: highlighted ? AppColors.accent : AppColors.primary),
           const SizedBox(width: 6),
           Text(

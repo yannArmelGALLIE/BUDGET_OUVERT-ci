@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'controllers/app_controller.dart';
+import 'controllers/commune_controller.dart';
 import 'services/audio_service.dart';
 import 'services/session_service.dart';
 import 'services/api_service.dart';
@@ -41,13 +42,13 @@ class BudgetOuvertApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
+        Provider<SessionService>.value(value: SessionService.instance),
         // AppController initialisé avec la session persistée
         ChangeNotifierProvider(
           create: (_) => AppController()..restoreSession(),
         ),
         ChangeNotifierProvider(create: (_) => AuthController()),
         ChangeNotifierProvider(create: (_) => CommuneController()),
-        ChangeNotifierProvider(create: (_) => SignalController()),
         // ScanController initialisé avec l'historique persisté
         ChangeNotifierProvider(
           create: (_) => ScanController()..restoreHistory(),

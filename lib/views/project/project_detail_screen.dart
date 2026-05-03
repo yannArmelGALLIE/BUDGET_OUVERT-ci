@@ -1,12 +1,11 @@
 // lib/views/project/project_detail_screen.dart
 import 'package:flutter/material.dart';
-
+import 'package:latlong2/latlong.dart';
 import '../../utils/app_constants.dart';
 import '../../widgets/shared_widgets.dart';
 import '../../widgets/audio_player_card.dart';
 import '../../widgets/commune_map_widget.dart';
 import '../../models/commune_model.dart';
-import 'package:latlong2/latlong.dart';
 
 class ProjectDetailScreen extends StatelessWidget {
   final String projectId;

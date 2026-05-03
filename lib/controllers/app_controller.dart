@@ -1,11 +1,9 @@
 // lib/controllers/app_controller.dart
-import 'dart:io';
 import 'package:flutter/material.dart';
 import '../models/commune_model.dart';
-import '../models/signal_model.dart';
+import '../models/user_model.dart';
 import '../services/session_service.dart';
 import '../services/api_service.dart';
-import '../services/location_service.dart';
 
 // ═══════════════════════════════════════════════════════════════════
 //  APP CONTROLLER — état global + session persistée
@@ -155,137 +153,6 @@ class AuthController extends ChangeNotifier {
       _isLoading = false;
       notifyListeners();
     }
-  }
-}
-
-// ═══════════════════════════════════════════════════════════════════
-//  COMMUNE CONTROLLER — données via ApiService
-// ═══════════════════════════════════════════════════════════════════
-
-class CommuneController extends ChangeNotifier {
-  CommuneModel _commune = CommuneModel.sample();
-  String _selectedFilter = 'Tout';
-  bool _isLoading = false;
-
-  CommuneModel get commune => _commune;
-  String get selectedFilter => _selectedFilter;
-  bool get isLoading => _isLoading;
-
-  List<ProjectModel> get filteredProjets {
-    if (_selectedFilter == 'Tout') return _commune.projets;
-    return _commune.projets
-        .where((p) =>
-            p.commune == _selectedFilter || p.categorie == _selectedFilter)
-        .toList();
-  }
-
-  void setFilter(String filter) {
-    _selectedFilter = filter;
-    notifyListeners();
-  }
-
-  Future<void> loadCommune(String id) async {
-    _isLoading = true;
-    notifyListeners();
-
-    try {
-      _commune = await ApiService.instance.getCommune(id);
-    } catch (_) {
-      // En cas d'erreur réseau on garde les données locales
-    } finally {
-      _isLoading = false;
-      notifyListeners();
-    }
-  }
-}
-
-// ═══════════════════════════════════════════════════════════════════
-//  SIGNAL CONTROLLER — soumission via ApiService + LocationService
-// ═══════════════════════════════════════════════════════════════════
-
-class SignalController extends ChangeNotifier {
-  List<SignalModel> _signals = SignalModel.samples();
-  String _selectedType = '';
-  String _description = '';
-  String _localisation = 'Abidjan, Côte d\'Ivoire';
-  double _latitude = 5.3600;
-  double _longitude = -4.0083;
-  bool _isSubmitting = false;
-  bool _submitted = false;
-  bool _isFetchingLocation = false;
-
-  List<SignalModel> get signals => _signals;
-  String get selectedType => _selectedType;
-  String get description => _description;
-  String get localisation => _localisation;
-  bool get isSubmitting => _isSubmitting;
-  bool get submitted => _submitted;
-  bool get isFetchingLocation => _isFetchingLocation;
-
-  void setType(String type) {
-    _selectedType = type;
-    notifyListeners();
-  }
-
-  void setDescription(String value) {
-    _description = value;
-    notifyListeners();
-  }
-
-  /// Récupère la position GPS réelle via LocationService.
-  Future<void> fetchCurrentLocation() async {
-    _isFetchingLocation = true;
-    notifyListeners();
-
-    final result = await LocationService.instance.getCurrentLocation();
-    _localisation = result.adresse;
-    _latitude = result.latitude;
-    _longitude = result.longitude;
-
-    _isFetchingLocation = false;
-    notifyListeners();
-  }
-
-  /// Charge les signalements de l'utilisateur depuis l'API.
-  Future<void> loadMySignals() async {
-    try {
-      _signals = await ApiService.instance.getMySignals();
-      notifyListeners();
-    } catch (_) {
-      // Conserver les données locales en cas d'erreur
-    }
-  }
-
-  Future<bool> submitSignal({File? photo}) async {
-    _isSubmitting = true;
-    notifyListeners();
-
-    try {
-      final signal = await ApiService.instance.submitSignal(
-        type: _selectedType,
-        description: _description,
-        localisation: _localisation,
-        latitude: _latitude,
-        longitude: _longitude,
-        photo: photo,
-      );
-
-      _signals.insert(0, signal);
-      _submitted = true;
-      return true;
-    } catch (_) {
-      return false;
-    } finally {
-      _isSubmitting = false;
-      notifyListeners();
-    }
-  }
-
-  void reset() {
-    _selectedType = '';
-    _description = '';
-    _submitted = false;
-    notifyListeners();
   }
 }
 

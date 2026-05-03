@@ -6,7 +6,7 @@ import 'package:provider/provider.dart';
 import '../../controllers/app_controller.dart';
 import '../../utils/app_constants.dart';
 import '../../widgets/shared_widgets.dart';
-import '../../models/signal_model.dart';
+import '../../models/user_model.dart';
 
 class ScanScreen extends StatefulWidget {
   const ScanScreen({super.key});
