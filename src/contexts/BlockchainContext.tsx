@@ -1,18 +1,19 @@
 // src/contexts/BlockchainContext.tsx
-// Connecté au backend Railway — https://budgetouvert-ci-production.up.railway.app
-// Format de réponse API réel pris en compte
+// ─────────────────────────────────────────────────────────────────────────────
+// Connexion DIRECTE au smart contract BudgetRegistry sur Polygon Amoy
+// ✅ Lecture  : ethers.js → contract.getTransactions() — sans backend
+// ✅ Écriture : MetaMask  → contract.recordRevenue/Expense() — sans backend
+// ✅ Temps réel : écoute l'event TransactionRecorded + polling 15s
+// ─────────────────────────────────────────────────────────────────────────────
 
 import {
-  createContext,
-  useState,
-  useEffect,
-  useCallback,
-  ReactNode,
+  createContext, useState, useEffect,
+  useCallback, useRef, ReactNode,
 } from "react";
+import { ethers } from "ethers";
+import { BUDGET_REGISTRY_ABI, CONTRACT_ADDRESS, AMOY_RPC } from "../abi/BudgetRegistry.abi";
 
-const API_BASE        = "https://budgetouvert-ci-production.up.railway.app/api/budget";
-const DEFAULT_COMMUNE  = "Commune Cocody";
-const DEFAULT_RECORDER = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266";
+// ── Types ─────────────────────────────────────────────────────────────────────
 
 export interface Transaction {
   id:          number;
@@ -60,34 +61,46 @@ export interface BlockchainContextType {
   commune:             string;
 }
 
-// Format brut retourné par le backend
-interface RawTransaction {
-  id:          number;
-  communeName: string;
-  txType:      "REVENUE" | "EXPENSE";
-  category:    string;
-  amount:      string;
-  timestamp:   string;
-  description: string;
-  recorder:    string;
-  hash?:       string;
-}
+// ── Constantes ────────────────────────────────────────────────────────────────
 
-// Convertir la réponse brute en Transaction utilisable par les dashboards
-function parseRawTx(raw: RawTransaction): Transaction {
+const DEFAULT_COMMUNE = "Commune Cocody";
+const AMOY_CHAIN_ID   = 80002;
+
+// ── Utilitaire : convertit une transaction brute du contrat ──────────────────
+
+function parseContractTx(raw: any, txHash?: string): Transaction {
   return {
-    id:          raw.id,
-    commune:     raw.communeName,
-    type:        raw.txType === "REVENUE" ? "recette" : "dépense",
+    id:          Number(raw.id),
+    commune:     raw.commune,
+    type:        Number(raw.txType) === 0 ? "recette" : "dépense",
     category:    raw.category,
     amount:      Number(raw.amount),
-    date:        new Date(raw.timestamp).toLocaleDateString("fr-FR"),
-    timestamp:   Math.floor(new Date(raw.timestamp).getTime() / 1000),
+    date:        new Date(Number(raw.timestamp) * 1000).toLocaleDateString("fr-FR"),
+    timestamp:   Number(raw.timestamp),
     description: raw.description,
     recorder:    raw.recorder,
-    hash:        raw.hash ?? null,
+    hash:        txHash ?? null,
   };
 }
+
+// ── Contract en lecture seule (sans MetaMask, gratuit) ───────────────────────
+
+function getReadContract() {
+  const provider = new ethers.JsonRpcProvider(AMOY_RPC);
+  return new ethers.Contract(CONTRACT_ADDRESS, BUDGET_REGISTRY_ABI, provider);
+}
+
+// ── Contract en écriture (MetaMask requis) ───────────────────────────────────
+
+async function getWriteContract() {
+  const eth = (window as any).ethereum;
+  if (!eth) throw new Error("MetaMask non détecté");
+  const provider = new ethers.BrowserProvider(eth);
+  const signer   = await provider.getSigner();
+  return new ethers.Contract(CONTRACT_ADDRESS, BUDGET_REGISTRY_ABI, signer);
+}
+
+// ── Context ───────────────────────────────────────────────────────────────────
 
 export const BlockchainContext = createContext<BlockchainContextType | null>(null);
 
@@ -102,125 +115,199 @@ export function BlockchainProvider({ children }: { children: ReactNode }) {
   const [isConnected,  setIsConnected]  = useState(false);
   const [chainId,      setChainId]      = useState<number | null>(null);
 
-  // Charger les transactions — backend retourne un tableau direct []
+  // Map id_onchain → hash tx Polygon pour les afficher dans la table
+  const knownHashes = useRef<Map<number, string>>(new Map());
+
+  // ── Lire les transactions directement depuis le contrat ──────────────────────
   const loadTransactions = useCallback(async () => {
+    if (!CONTRACT_ADDRESS) return;
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(
-        `${API_BASE}/transactions/${encodeURIComponent(DEFAULT_COMMUNE)}`
+      const contract = getReadContract();
+      const rawList  = await contract.getTransactions(DEFAULT_COMMUNE);
+
+      const parsed: Transaction[] = Array.from(rawList).map((raw: any) =>
+        parseContractTx(raw, knownHashes.current.get(Number(raw.id)))
       );
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const rawList: RawTransaction[] = await res.json();
-      setTransactions(rawList.map(parseRawTx));
+
+      // Plus récent en premier
+      parsed.sort((a, b) => b.timestamp - a.timestamp);
+      setTransactions(parsed);
       setMode("real");
     } catch (e: any) {
-      console.warn("Backend inaccessible:", e.message);
+      console.warn("Lecture blockchain échouée:", e.message);
       setMode("local");
     } finally {
       setLoading(false);
     }
   }, []);
 
+  // Chargement initial
   useEffect(() => { loadTransactions(); }, [loadTransactions]);
 
-  // Polling toutes les 10 secondes
+  // Polling toutes les 15 secondes — met à jour tous les dashboards ouverts
   useEffect(() => {
-    const interval = setInterval(loadTransactions, 10_000);
-    return () => clearInterval(interval);
+    const id = setInterval(loadTransactions, 15_000);
+    return () => clearInterval(id);
   }, [loadTransactions]);
 
+  // ── Écoute les events en temps réel quand MetaMask est connecté ──────────────
+  useEffect(() => {
+    if (!isConnected || !CONTRACT_ADDRESS) return;
+    let contract: ethers.Contract;
+    try {
+      const provider = new ethers.BrowserProvider((window as any).ethereum);
+      contract = new ethers.Contract(CONTRACT_ADDRESS, BUDGET_REGISTRY_ABI, provider);
+
+      contract.on("TransactionRecorded", (
+        id, _commune, _txType, _category, _amount, _timestamp, _description, _recorder, event
+      ) => {
+        knownHashes.current.set(Number(id), event.log.transactionHash);
+        // Recharge 2s après l'event (temps de propagation Polygon)
+        setTimeout(loadTransactions, 2000);
+      });
+    } catch (e) {
+      console.warn("Écoute events échouée:", e);
+    }
+    return () => { contract?.removeAllListeners(); };
+  }, [isConnected, loadTransactions]);
+
+  // ── Connecter MetaMask et vérifier le réseau Amoy ───────────────────────────
   const connectWallet = useCallback(async () => {
-    if (!(window as any).ethereum) { setError("MetaMask non détecté"); return; }
+    const eth = (window as any).ethereum;
+    if (!eth) {
+      setError("MetaMask non détecté — installe l'extension");
+      return;
+    }
     try {
-      const accounts = await (window as any).ethereum.request({ method: "eth_requestAccounts" }) as string[];
-      const chainHex = await (window as any).ethereum.request({ method: "eth_chainId" }) as string;
+      const accounts = await eth.request({ method: "eth_requestAccounts" }) as string[];
+      const chainHex = await eth.request({ method: "eth_chainId" }) as string;
+      const cid      = parseInt(chainHex, 16);
+
+      // Change automatiquement vers Polygon Amoy si nécessaire
+      if (cid !== AMOY_CHAIN_ID) {
+        try {
+          await eth.request({
+            method: "wallet_switchEthereumChain",
+            params: [{ chainId: "0x13882" }], // 80002 en hex
+          });
+        } catch {
+          setError("Change le réseau MetaMask vers Polygon Amoy (Chain ID 80002)");
+          return;
+        }
+      }
+
       setAccount(accounts[0] ?? null);
-      setChainId(parseInt(chainHex, 16));
+      setChainId(AMOY_CHAIN_ID);
       setIsConnected(true);
-    } catch { setError("Connexion MetaMask échouée"); }
-  }, []);
+      setError(null);
+      await loadTransactions();
+    } catch (e: any) {
+      setError("Connexion MetaMask échouée : " + (e.message ?? ""));
+    }
+  }, [loadTransactions]);
 
-  const recordRevenue = useCallback(async ({ commune, category, amount, description }: TxPayload): Promise<TxResult> => {
+  // ── Enregistrer une RECETTE directement sur le contrat ──────────────────────
+  const recordRevenue = useCallback(async ({
+    commune, category, amount, description,
+  }: TxPayload): Promise<TxResult> => {
     setError(null);
-    if (mode === "local") {
+
+    // Mode simulation si contrat non configuré ou pas connecté
+    if (!CONTRACT_ADDRESS || !isConnected) {
       const fake: Transaction = {
-        id: transactions.length + 1, commune: commune ?? DEFAULT_COMMUNE,
-        type: "recette", category, amount: Math.round(amount),
+        id: transactions.length + 1,
+        commune: commune ?? DEFAULT_COMMUNE,
+        type: "recette", category,
+        amount: Math.round(amount),
         date: new Date().toLocaleDateString("fr-FR"),
-        timestamp: Math.floor(Date.now() / 1000), description,
-        recorder: "0xSimulation...",
-        hash: "0x" + Math.random().toString(16).slice(2, 18) + "...local",
+        timestamp: Math.floor(Date.now() / 1000),
+        description,
+        recorder: account ?? "0xSimulation",
+        hash: "0xlocal_" + Math.random().toString(16).slice(2, 14),
       };
       setTransactions(prev => [fake, ...prev]);
       return { success: true, hash: fake.hash! };
     }
+
     setTxPending(true);
     try {
-      const res = await fetch(`${API_BASE}/revenue`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          commune: commune ?? DEFAULT_COMMUNE,
-          category,
-          amount: String(Math.round(amount)),
-          description,
-          recorder: account ?? DEFAULT_RECORDER,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
-      setLastTxHash(data.hash ?? null);
+      const contract = await getWriteContract();
+
+      // ⚡ Appel direct au smart contract via MetaMask
+      const tx = await contract.recordRevenue(
+        commune ?? DEFAULT_COMMUNE,
+        category,
+        BigInt(Math.round(amount)),
+        description,
+      );
+
+      // Attend la confirmation du bloc (≈ 2s sur Amoy)
+      const receipt = await tx.wait(1);
+      setLastTxHash(receipt.hash);
+
+      // Recharge — tous les autres dashboards verront la nouvelle tx au prochain polling
       await loadTransactions();
-      return { success: true, hash: data.hash };
+      return { success: true, hash: receipt.hash };
     } catch (e: any) {
-      const msg = e.message ?? "Erreur enregistrement";
+      const msg = e.reason ?? e.message ?? "Erreur enregistrement";
       setError(msg);
       return { success: false, error: msg };
-    } finally { setTxPending(false); }
-  }, [mode, transactions, account, loadTransactions]);
+    } finally {
+      setTxPending(false);
+    }
+  }, [isConnected, transactions, account, loadTransactions]);
 
-  const recordExpense = useCallback(async ({ commune, category, amount, description }: TxPayload): Promise<TxResult> => {
+  // ── Enregistrer une DÉPENSE directement sur le contrat ──────────────────────
+  const recordExpense = useCallback(async ({
+    commune, category, amount, description,
+  }: TxPayload): Promise<TxResult> => {
     setError(null);
-    if (mode === "local") {
+
+    if (!CONTRACT_ADDRESS || !isConnected) {
       const fake: Transaction = {
-        id: transactions.length + 1, commune: commune ?? DEFAULT_COMMUNE,
-        type: "dépense", category, amount: Math.round(amount),
+        id: transactions.length + 1,
+        commune: commune ?? DEFAULT_COMMUNE,
+        type: "dépense", category,
+        amount: Math.round(amount),
         date: new Date().toLocaleDateString("fr-FR"),
-        timestamp: Math.floor(Date.now() / 1000), description,
-        recorder: "0xSimulation...",
-        hash: "0x" + Math.random().toString(16).slice(2, 18) + "...local",
+        timestamp: Math.floor(Date.now() / 1000),
+        description,
+        recorder: account ?? "0xSimulation",
+        hash: "0xlocal_" + Math.random().toString(16).slice(2, 14),
       };
       setTransactions(prev => [fake, ...prev]);
       return { success: true, hash: fake.hash! };
     }
+
     setTxPending(true);
     try {
-      const res = await fetch(`${API_BASE}/expense`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          commune: commune ?? DEFAULT_COMMUNE,
-          category,
-          amount: String(Math.round(amount)),
-          description,
-          recorder: account ?? DEFAULT_RECORDER,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
-      setLastTxHash(data.hash ?? null);
+      const contract = await getWriteContract();
+
+      const tx = await contract.recordExpense(
+        commune ?? DEFAULT_COMMUNE,
+        category,
+        BigInt(Math.round(amount)),
+        description,
+      );
+
+      const receipt = await tx.wait(1);
+      setLastTxHash(receipt.hash);
       await loadTransactions();
-      return { success: true, hash: data.hash };
+      return { success: true, hash: receipt.hash };
     } catch (e: any) {
-      const msg = e.message ?? "Erreur enregistrement";
+      const msg = e.reason ?? e.message ?? "Erreur enregistrement";
       setError(msg);
       return { success: false, error: msg };
-    } finally { setTxPending(false); }
-  }, [mode, transactions, account, loadTransactions]);
+    } finally {
+      setTxPending(false);
+    }
+  }, [isConnected, transactions, account, loadTransactions]);
 
-  const totalRecettes = transactions.filter(t => t.type === "recette").reduce((s, t) => s + t.amount, 0);
-  const totalDepenses = transactions.filter(t => t.type === "dépense").reduce((s, t) => s + t.amount, 0);
+  // ── Calculs ───────────────────────────────────────────────────────────────────
+  const totalRecettes = transactions.filter(t => t.type === "recette").reduce((s,t) => s+t.amount, 0);
+  const totalDepenses = transactions.filter(t => t.type === "dépense").reduce((s,t) => s+t.amount, 0);
   const balance       = totalRecettes - totalDepenses;
 
   return (

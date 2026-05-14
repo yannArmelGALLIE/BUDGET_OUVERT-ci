@@ -1,6 +1,6 @@
 // @ts-nocheck
 // src/pages/FinancialDirectorDashboard.jsx
-// ─────────────────────────────────────────────────────────────────────────────
+// ──────────────────────────────────────────────bv───────────────────────────────
 // Dashboard Directeur Financier — connecté au smart contract BudgetRegistry
 // Les transactions sont enregistrées sur Polygon Amoy (ou simulées en local)
 // ─────────────────────────────────────────────────────────────────────────────
