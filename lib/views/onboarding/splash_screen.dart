@@ -2,11 +2,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
-import '../../utils/app_constants.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-// Imports ajoutés en haut
-import 'package:provider/provider.dart';
 import '../../services/session_service.dart';
+import '../../utils/app_constants.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -29,17 +27,19 @@ class _SplashScreenState extends State<SplashScreen>
     await Future.delayed(const Duration(milliseconds: 3000));
     if (!mounted) return;
 
-    final session = context.read<SessionService>();
+    final session = SessionService.instance;
+    final hasSeenOnboarding = session.hasSeenOnboarding;
+    final selectedCommune = session.commune;
 
-    if (!session.hasSeenOnboarding) {
-      // Première ouverture : montrer l'onboarding
+    if (!hasSeenOnboarding) {
+      // Première fois: montrer l'onboarding
       context.go('/onboarding');
-    } else if (session.isLoggedIn) {
-      // Déjà connecté : aller directement à l'accueil
-      context.go('/accueil');
+    } else if (selectedCommune == null) {
+      // Onboarding vu mais pas de commune sélectionnée
+      context.go('/selection-commune');
     } else {
-      // Onboarding vu mais pas connecté : aller à la connexion
-      context.go('/connexion');
+      // Onboarding vu ET commune sélectionnée: aller directement à l'accueil
+      context.go('/accueil');
     }
   }
 
@@ -163,13 +163,12 @@ class _SplashScreenState extends State<SplashScreen>
                   builder: (context, _) => Opacity(
                     opacity: _textOpacity.value,
                     child: const Text(
-                      'BUDGETOUVERT',
+                      'Budget Ouvert',
                       style: TextStyle(
-                        fontFamily: AppTextStyles.fontFamily,
                         fontSize: 26,
-                        fontWeight: FontWeight.w700,
+                        fontWeight: FontWeight.bold,
                         color: AppColors.white,
-                        letterSpacing: 3,
+                        letterSpacing: 1,
                       ),
                     ),
                   ),
@@ -183,13 +182,11 @@ class _SplashScreenState extends State<SplashScreen>
                   builder: (context, _) => Opacity(
                     opacity: _subtitleOpacity.value,
                     child: const Text(
-                      'TRANSPARENCE CITOYENNE',
+                      'Transparence Budgétaire',
                       style: TextStyle(
-                        fontFamily: AppTextStyles.fontFamily,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w400,
-                        color: Colors.white60,
-                        letterSpacing: 2.5,
+                        fontSize: 14,
+                        fontWeight: FontWeight.normal,
+                        color: Colors.white70,
                       ),
                     ),
                   ),

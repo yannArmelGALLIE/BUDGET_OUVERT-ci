@@ -1,11 +1,11 @@
 // lib/views/onboarding/onboarding_screen.dart
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:smooth_page_indicator/smooth_page_indicator.dart';
-import '../../utils/app_constants.dart';
-import '../../widgets/shared_widgets.dart';
 import 'package:provider/provider.dart';
+import 'package:smooth_page_indicator/smooth_page_indicator.dart';
+
 import '../../services/session_service.dart';
+import '../../utils/app_constants.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
@@ -36,7 +36,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     _OnboardingPage(
       title: 'Votre Voix\nCompte',
       body:
-          'Scannez les chantiers QR pour voir le budget en temps réel. Accédez aux données blockchain de votre commune.',
+          'Scannez les QR codes pour accéder directement aux détails d\'une opération ou d\'une commune.',
       icon: Icons.qr_code_scanner,
       illustrationKey: 'action',
       isLast: true,
@@ -59,7 +59,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   Future<void> _markAndNavigate() async {
     await context.read<SessionService>().markOnboardingSeen();
-    if (mounted) context.go('/connexion');
+    if (mounted) context.go('/selection-commune');
+    ;
   }
 
   @override
@@ -113,12 +114,32 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     ),
                   ),
                   const SizedBox(height: 28),
-                  PrimaryButton(
-                    label: _currentPage == _pages.length - 1
-                        ? 'Commencer'
-                        : 'Suivant',
-                    trailingIcon: Icons.arrow_forward,
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: AppColors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius:
+                            BorderRadius.circular(AppDimens.radiusFull),
+                      ),
+                    ),
                     onPressed: _next,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          _currentPage == _pages.length - 1
+                              ? 'Commencer'
+                              : 'Suivant',
+                          style: AppTextStyles.labelLarge
+                              .copyWith(color: AppColors.white),
+                        ),
+                        if (_currentPage < _pages.length - 1) ...[
+                          const SizedBox(width: 6),
+                          const Icon(Icons.arrow_forward, size: 16),
+                        ],
+                      ],
+                    ),
                   ),
                 ],
               ),
@@ -462,7 +483,7 @@ class _ActionIllustration extends StatelessWidget {
                     size: 14, color: AppColors.white),
                 const SizedBox(width: 6),
                 Text(
-                  'Solde disponible: 40.000.000 FCFA',
+                  'Budget annuel: 4.800.000.000 FCFA',
                   style: AppTextStyles.caption.copyWith(
                     color: AppColors.white,
                     fontWeight: FontWeight.w600,
@@ -488,12 +509,10 @@ class _ActionIllustration extends StatelessWidget {
 class _FeatureBadge extends StatelessWidget {
   final IconData icon;
   final String label;
-  final bool highlighted;
 
   const _FeatureBadge({
     required this.icon,
     required this.label,
-    this.highlighted = false,
   });
 
   @override
@@ -501,25 +520,20 @@ class _FeatureBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color:
-            highlighted ? AppColors.accent.withOpacity(0.15) : AppColors.white,
+        color: AppColors.white,
         borderRadius: BorderRadius.circular(AppDimens.radiusM),
-        border: Border.all(
-          color: highlighted ? AppColors.accent : AppColors.divider,
-        ),
+        border: Border.all(color: AppColors.divider),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon,
-              size: 14,
-              color: highlighted ? AppColors.accent : AppColors.primary),
+          Icon(icon, size: 16, color: AppColors.textSecondary),
           const SizedBox(width: 6),
           Text(
             label,
             style: AppTextStyles.caption.copyWith(
-              fontWeight: FontWeight.w600,
-              color: highlighted ? AppColors.accent : AppColors.textPrimary,
+              color: AppColors.textSecondary,
+              fontWeight: FontWeight.w400,
             ),
           ),
         ],

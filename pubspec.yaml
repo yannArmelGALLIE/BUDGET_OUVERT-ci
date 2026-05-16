@@ -1,14 +1,28 @@
-name: budgetouvert
+name: budget_ouvert
 description: Application de transparence budgétaire citoyenne - République de Côte d'Ivoire
 publish_to: 'none'
 version: 1.0.0+1
 
 environment:
-  sdk: '>=3.0.0 <4.0.0'
+  sdk: '>=3.6.0 <4.0.0'
 
 dependencies:
   flutter:
     sdk: flutter
+
+
+  firebase_core: ^3.6.0
+  firebase_auth: ^5.7.0
+  cloud_firestore: ^5.4.4
+
+  # ── Phase 2 — Lecture blockchain ──────────────────────────────────────────
+  web3dart: ^3.0.2
+  # EthereumAddress est fourni par wallet (web3dart 3.x ne le réexporte pas)
+  wallet: ^0.0.18
+  # http est déjà présent dans le projet
+
+  # ── Phase 3 — Firebase Storage (preuves signalements) ────────────────────
+  firebase_storage: ^12.3.2
 
   # Navigation
   go_router: ^13.0.0
@@ -37,11 +51,12 @@ dependencies:
   flutter_map: ^7.0.2
   latlong2: ^0.9.1
 
-    # Signalement — image picker
+  # Signalement — image picker
   image_picker: ^1.1.2
+  file_picker: ^8.0.3
   permission_handler: ^11.3.1
 
-    # Utilitaires
+  # Utilitaires
   
   path_provider: ^2.1.4
   cached_network_image: ^3.4.1
@@ -56,6 +71,7 @@ dependencies:
   geolocator: ^12.0.0
   flutter_native_splash: ^2.4.7
   flutter_launcher_icons: ^0.14.4
+  url_launcher: ^6.3.2
 
 dev_dependencies:
   flutter_test:
@@ -65,12 +81,38 @@ dev_dependencies:
 flutter:
   uses-material-design: true
 
-
-
   # Assets
   assets:
     - assets/images/
 
+  # Fonts
+  fonts:
+    - family: Poppins
+      fonts:
+        - asset: assets/fonts/Poppins-Regular.ttf
+        - asset: assets/fonts/Poppins-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Poppins-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/Poppins-Bold.ttf
+          weight: 700
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# DÉPENDANCES À AJOUTER dans pubspec.yaml
+# (fusionner avec les dépendances existantes)
+# ════════════════════════════════════════════════════════════════════════════
+
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# APRÈS flutter pub add, exécuter :
+#   flutterfire configure
+# pour générer lib/firebase_options.dart et l'enregistrer dans Firebase Console.
+#
+# Puis dans main.dart (déjà fait) :
+#   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+# ════════════════════════════════════════════════════════════════════════════
 
 flutter_native_splash:
   color: "#2D6B4A" # couleur de fond

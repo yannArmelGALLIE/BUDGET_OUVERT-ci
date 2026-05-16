@@ -1,17 +1,23 @@
 // lib/main.dart
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'controllers/app_controller.dart';
-import 'controllers/commune_controller.dart';
-import 'services/audio_service.dart';
+import 'services/firebase_auth_service.dart';
 import 'services/session_service.dart';
-import 'services/api_service.dart';
-import 'utils/app_constants.dart';
 import 'utils/app_router.dart';
+import 'utils/app_constants.dart';
+import 'firebase_options.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // ── Phase 1 : initialisation Firebase ────────────────────────────────────
+// APRÈS
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
 
   SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
@@ -19,18 +25,10 @@ void main() async {
     statusBarIconBrightness: Brightness.dark,
   ));
 
-  // ── Initialisation des services ──────────────────────────────────
-  // 1. Persistance session (doit être avant runApp pour lire isLoggedIn)
+  // Initialisation des services
   await SessionService.instance.init();
-
-  // 2. Audio
-  AudioService.instance.init();
-
-  // 3. Injecter le token API sauvegardé si session active
-  final savedToken = SessionService.instance.authToken;
-  if (savedToken != null) {
-    ApiService.instance.setToken(savedToken);
-  }
+  await FirebaseAuthService
+      .init(); // Restaure la session citoyen si elle existe
 
   runApp(const BudgetOuvertApp());
 }
@@ -43,16 +41,7 @@ class BudgetOuvertApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         Provider<SessionService>.value(value: SessionService.instance),
-        // AppController initialisé avec la session persistée
-        ChangeNotifierProvider(
-          create: (_) => AppController()..restoreSession(),
-        ),
-        ChangeNotifierProvider(create: (_) => AuthController()),
-        ChangeNotifierProvider(create: (_) => CommuneController()),
-        // ScanController initialisé avec l'historique persisté
-        ChangeNotifierProvider(
-          create: (_) => ScanController()..restoreHistory(),
-        ),
+        ChangeNotifierProvider(create: (_) => AppController()),
       ],
       child: MaterialApp.router(
         title: 'BudgetOuvert',
@@ -60,35 +49,10 @@ class BudgetOuvertApp extends StatelessWidget {
         routerConfig: appRouter,
         theme: ThemeData(
           fontFamily: AppTextStyles.fontFamily,
-          colorScheme: ColorScheme.fromSeed(
-            seedColor: AppColors.primary,
-            primary: AppColors.primary,
-            secondary: AppColors.accent,
-            surface: AppColors.surface,
-          ),
-          scaffoldBackgroundColor: AppColors.background,
+          scaffoldBackgroundColor: Colors.white,
           appBarTheme: const AppBarTheme(
-            backgroundColor: AppColors.white,
+            backgroundColor: Colors.white,
             elevation: 0,
-            iconTheme: IconThemeData(color: AppColors.textPrimary),
-          ),
-          elevatedButtonTheme: ElevatedButtonThemeData(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              foregroundColor: AppColors.white,
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppDimens.radiusFull),
-              ),
-            ),
-          ),
-          inputDecorationTheme: InputDecorationTheme(
-            filled: true,
-            fillColor: AppColors.inputBg,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(AppDimens.radiusM),
-              borderSide: BorderSide.none,
-            ),
           ),
           useMaterial3: true,
         ),

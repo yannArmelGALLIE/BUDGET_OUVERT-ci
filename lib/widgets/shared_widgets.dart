@@ -1,16 +1,19 @@
 // lib/widgets/shared_widgets.dart
 import 'package:flutter/material.dart';
 import '../utils/app_constants.dart';
+import '../services/firebase_auth_service.dart';
 
 // ─── APP BAR ───────────────────────────────────────────────────────────────
 class BudgetAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String communeName;
   final bool showProfile;
+  final VoidCallback? onProfileTap;
 
   const BudgetAppBar({
     super.key,
-    this.communeName = 'Commune d\'Adjamé',
+    this.communeName = 'BudgetOuvert',
     this.showProfile = true,
+    this.onProfileTap,
   });
 
   @override
@@ -31,51 +34,46 @@ class BudgetAppBar extends StatelessWidget implements PreferredSizeWidget {
               color: AppColors.primarySurface,
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.location_on, size: 14, color: AppColors.primary),
+            child: const Icon(Icons.location_on,
+                size: 14, color: AppColors.primary),
           ),
           const SizedBox(width: 8),
-          Text(
-            communeName,
-            style: AppTextStyles.titleLarge.copyWith(fontSize: 14),
-          ),
+          Text(communeName,
+              style: AppTextStyles.titleLarge.copyWith(fontSize: 14)),
         ],
       ),
       actions: [
-        if (showProfile)
-          Padding(
-            padding: const EdgeInsets.only(right: AppDimens.paddingM),
-            child: Row(
-              children: [
-                _NotifBell(),
-                const SizedBox(width: 10),
-                _ProfileAvatar(),
-              ],
-            ),
+        Padding(
+          padding: const EdgeInsets.only(right: AppDimens.paddingM),
+          child: GestureDetector(
+            onTap: onProfileTap,
+            child: showProfile ? _ProfileAvatar() : _UnconnectedAvatar(),
           ),
+        ),
       ],
     );
   }
 }
 
-class _NotifBell extends StatelessWidget {
+class _UnconnectedAvatar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        const Icon(Icons.notifications_outlined, color: AppColors.textPrimary, size: 22),
-        Positioned(
-          top: 0,
-          right: 0,
-          child: Container(
-            width: 8,
-            height: 8,
-            decoration: const BoxDecoration(
-              color: AppColors.accent,
-              shape: BoxShape.circle,
-            ),
-          ),
-        ),
-      ],
+    return Container(
+      width: 32,
+      height: 32,
+      decoration: BoxDecoration(
+        color: Colors.redAccent,
+        borderRadius: BorderRadius.circular(AppDimens.radiusFull),
+      ),
+      child: const Center(
+        child: Text("?",
+            style: TextStyle(
+              fontFamily: AppTextStyles.fontFamily,
+              fontWeight: FontWeight.w700,
+              fontSize: 14,
+              color: AppColors.primary,
+            )),
+      ),
     );
   }
 }
@@ -83,6 +81,10 @@ class _NotifBell extends StatelessWidget {
 class _ProfileAvatar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
+    final citoyen = FirebaseAuthService.currentCitoyen;
+    final initiale = citoyen != null && citoyen.prenom.isNotEmpty
+        ? citoyen.prenom[0].toUpperCase()
+        : '?';
     return Container(
       width: 32,
       height: 32,
@@ -90,16 +92,14 @@ class _ProfileAvatar extends StatelessWidget {
         color: AppColors.primarySurface,
         borderRadius: BorderRadius.circular(AppDimens.radiusFull),
       ),
-      child: const Center(
-        child: Text(
-          'K',
-          style: TextStyle(
-            fontFamily: AppTextStyles.fontFamily,
-            fontWeight: FontWeight.w700,
-            fontSize: 14,
-            color: AppColors.primary,
-          ),
-        ),
+      child: Center(
+        child: Text(initiale,
+            style: const TextStyle(
+              fontFamily: AppTextStyles.fontFamily,
+              fontWeight: FontWeight.w700,
+              fontSize: 14,
+              color: AppColors.primary,
+            )),
       ),
     );
   }
@@ -133,8 +133,7 @@ class PrimaryButton extends StatelessWidget {
           backgroundColor: AppColors.primary,
           foregroundColor: AppColors.white,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppDimens.radiusFull),
-          ),
+              borderRadius: BorderRadius.circular(AppDimens.radiusFull)),
           elevation: 0,
         ),
         child: isLoading
@@ -142,17 +141,14 @@ class PrimaryButton extends StatelessWidget {
                 width: 20,
                 height: 20,
                 child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation(AppColors.white),
-                ),
-              )
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation(AppColors.white)))
             : Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(
-                    label,
-                    style: AppTextStyles.labelLarge.copyWith(color: AppColors.white),
-                  ),
+                  Text(label,
+                      style: AppTextStyles.labelLarge
+                          .copyWith(color: AppColors.white)),
                   if (trailingIcon != null) ...[
                     const SizedBox(width: 6),
                     Icon(trailingIcon, size: 16),
@@ -167,7 +163,9 @@ class PrimaryButton extends StatelessWidget {
 // ─── INPUT FIELD ───────────────────────────────────────────────────────────
 class BudgetTextField extends StatelessWidget {
   final String hint;
+  final TextEditingController? controller;
   final IconData? prefixIcon;
+  final Widget? suffixIcon;
   final TextInputType? keyboardType;
   final ValueChanged<String>? onChanged;
   final bool obscureText;
@@ -175,7 +173,9 @@ class BudgetTextField extends StatelessWidget {
   const BudgetTextField({
     super.key,
     required this.hint,
+    this.controller,
     this.prefixIcon,
+    this.suffixIcon,
     this.keyboardType,
     this.onChanged,
     this.obscureText = false,
@@ -184,6 +184,7 @@ class BudgetTextField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return TextField(
+      controller: controller,
       onChanged: onChanged,
       obscureText: obscureText,
       keyboardType: keyboardType,
@@ -194,6 +195,7 @@ class BudgetTextField extends StatelessWidget {
         prefixIcon: prefixIcon != null
             ? Icon(prefixIcon, size: 18, color: AppColors.textSecondary)
             : null,
+        suffixIcon: suffixIcon,
         filled: true,
         fillColor: AppColors.inputBg,
         contentPadding:
@@ -219,7 +221,6 @@ class BudgetTextField extends StatelessWidget {
 class StatusChip extends StatelessWidget {
   final String label;
   final String statut;
-
   const StatusChip({super.key, required this.label, required this.statut});
 
   Color get _bgColor {
@@ -256,23 +257,17 @@ class StatusChip extends StatelessWidget {
         color: _bgColor,
         borderRadius: BorderRadius.circular(AppDimens.radiusFull),
       ),
-      child: Text(
-        label.toUpperCase(),
-        style: AppTextStyles.caption.copyWith(
-          color: _textColor,
-          fontWeight: FontWeight.w700,
-          fontSize: 10,
-        ),
-      ),
+      child: Text(label.toUpperCase(),
+          style: AppTextStyles.caption.copyWith(
+              color: _textColor, fontWeight: FontWeight.w700, fontSize: 10)),
     );
   }
 }
 
-// ─── LOGO WIDGET ───────────────────────────────────────────────────────────
+// ─── LOGO ──────────────────────────────────────────────────────────────────
 class BudgetLogo extends StatelessWidget {
   final double size;
   final bool dark;
-
   const BudgetLogo({super.key, this.size = 72, this.dark = false});
 
   @override
@@ -281,23 +276,18 @@ class BudgetLogo extends StatelessWidget {
       width: size,
       height: size,
       decoration: BoxDecoration(
-        color: dark ? AppColors.white : AppColors.white,
+        color: AppColors.white,
         shape: BoxShape.circle,
         boxShadow: [
           BoxShadow(
-            color: AppColors.primary.withOpacity(0.15),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
-          ),
+              color: AppColors.primary.withOpacity(0.15),
+              blurRadius: 20,
+              offset: const Offset(0, 8))
         ],
       ),
       child: Center(
-        child: Icon(
-          Icons.savings_outlined,
-          size: size * 0.45,
-          color: AppColors.primary,
-        ),
-      ),
+          child: Icon(Icons.savings_outlined,
+              size: size * 0.45, color: AppColors.primary)),
     );
   }
 }
@@ -306,7 +296,6 @@ class BudgetLogo extends StatelessWidget {
 class AudioCard extends StatelessWidget {
   final String langue;
   final VoidCallback? onPlay;
-
   const AudioCard({super.key, required this.langue, this.onPlay});
 
   @override
@@ -321,10 +310,9 @@ class AudioCard extends StatelessWidget {
         children: [
           const Icon(Icons.headphones, size: 16, color: AppColors.primary),
           const SizedBox(width: 8),
-          Text(
-            'Écouter : $langue',
-            style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textPrimary),
-          ),
+          Text('Écouter : $langue',
+              style: AppTextStyles.bodyMedium
+                  .copyWith(color: AppColors.textPrimary)),
           const Spacer(),
           const Icon(Icons.volume_up, size: 16, color: AppColors.primary),
         ],
@@ -334,38 +322,50 @@ class AudioCard extends StatelessWidget {
 }
 
 // ─── LANGUE CHIP ───────────────────────────────────────────────────────────
-class LangueChip extends StatelessWidget {
+class LangueChip extends StatefulWidget {
   final String label;
   final bool selected;
   final VoidCallback? onTap;
+  const LangueChip(
+      {super.key, required this.label, this.selected = false, this.onTap});
 
-  const LangueChip({
-    super.key,
-    required this.label,
-    this.selected = false,
-    this.onTap,
-  });
+  @override
+  State<LangueChip> createState() => _LangueChipState();
+}
+
+class _LangueChipState extends State<LangueChip> {
+  late bool _isSelected;
+
+  @override
+  void initState() {
+    super.initState();
+    _isSelected = widget.selected;
+  }
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: onTap,
+      onTap: () {
+        setState(() {
+          _isSelected = !_isSelected;
+        });
+        if (widget.onTap != null) {
+          widget.onTap!();
+        }
+      },
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: selected ? AppColors.primary : AppColors.inputBg,
+          color: _isSelected ? AppColors.primary : AppColors.inputBg,
           borderRadius: BorderRadius.circular(AppDimens.radiusFull),
           border: Border.all(
-            color: selected ? AppColors.primary : AppColors.divider,
-          ),
+              color: _isSelected ? AppColors.primary : AppColors.divider),
         ),
-        child: Text(
-          label,
-          style: AppTextStyles.caption.copyWith(
-            color: selected ? AppColors.white : AppColors.textSecondary,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
+        child: Text(widget.label,
+            style: AppTextStyles.caption.copyWith(
+              color: _isSelected ? AppColors.white : AppColors.textSecondary,
+              fontWeight: FontWeight.w600,
+            )),
       ),
     );
   }
@@ -376,13 +376,8 @@ class SectionHeader extends StatelessWidget {
   final String title;
   final String? actionLabel;
   final VoidCallback? onAction;
-
-  const SectionHeader({
-    super.key,
-    required this.title,
-    this.actionLabel,
-    this.onAction,
-  });
+  const SectionHeader(
+      {super.key, required this.title, this.actionLabel, this.onAction});
 
   @override
   Widget build(BuildContext context) {
@@ -393,13 +388,9 @@ class SectionHeader extends StatelessWidget {
         if (actionLabel != null)
           GestureDetector(
             onTap: onAction,
-            child: Text(
-              actionLabel!,
-              style: AppTextStyles.bodyMedium.copyWith(
-                color: AppColors.accent,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
+            child: Text(actionLabel!,
+                style: AppTextStyles.bodyMedium.copyWith(
+                    color: AppColors.accent, fontWeight: FontWeight.w600)),
           ),
       ],
     );

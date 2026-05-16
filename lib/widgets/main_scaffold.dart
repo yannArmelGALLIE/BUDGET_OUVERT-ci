@@ -5,7 +5,6 @@ import '../utils/app_constants.dart';
 
 class MainScaffold extends StatelessWidget {
   final Widget child;
-
   const MainScaffold({super.key, required this.child});
 
   int _getIndex(BuildContext context) {
@@ -18,7 +17,6 @@ class MainScaffold extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final index = _getIndex(context);
-
     return Scaffold(
       body: child,
       bottomNavigationBar: _BudgetNavBar(currentIndex: index),
@@ -28,15 +26,26 @@ class MainScaffold extends StatelessWidget {
 
 class _BudgetNavBar extends StatelessWidget {
   final int currentIndex;
-
   const _BudgetNavBar({required this.currentIndex});
 
   @override
   Widget build(BuildContext context) {
     final items = [
-      _NavItem(icon: Icons.home_outlined, activeIcon: Icons.home, label: 'Accueil', path: '/accueil'),
-      _NavItem(icon: Icons.location_city_outlined, activeIcon: Icons.location_city, label: 'Communes', path: '/communes'),
-      _NavItem(icon: Icons.qr_code_scanner, activeIcon: Icons.qr_code_scanner, label: 'Scan', path: '/scan'),
+      _NavItem(
+          icon: Icons.home_outlined,
+          activeIcon: Icons.home,
+          label: 'Accueil',
+          path: '/accueil'),
+      _NavItem(
+          icon: Icons.location_city_outlined,
+          activeIcon: Icons.location_city,
+          label: 'Communes',
+          path: '/communes'),
+      _NavItem(
+          icon: Icons.qr_code_scanner,
+          activeIcon: Icons.qr_code_scanner,
+          label: 'Scan',
+          path: '/scan'),
     ];
 
     return Container(
@@ -57,11 +66,16 @@ class _BudgetNavBar extends StatelessWidget {
           children: List.generate(items.length, (i) {
             final item = items[i];
             final isActive = i == currentIndex;
-            final isCenter = i == 2; // Scan is special
+            final isCenter = i == 2;
 
             return Expanded(
               child: GestureDetector(
-                onTap: () => context.go(item.path),
+                onTap: () {
+                  if (Navigator.of(context).canPop()) {
+                    Navigator.of(context).pop();
+                  }
+                  context.go(item.path);
+                },
                 behavior: HitTestBehavior.opaque,
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -71,7 +85,9 @@ class _BudgetNavBar extends StatelessWidget {
                             width: 44,
                             height: 44,
                             decoration: BoxDecoration(
-                              color: isActive ? AppColors.accent : AppColors.primaryLight,
+                              color: isActive
+                                  ? AppColors.accent
+                                  : AppColors.primaryLight,
                               shape: BoxShape.circle,
                             ),
                             child: Icon(
@@ -82,7 +98,9 @@ class _BudgetNavBar extends StatelessWidget {
                           )
                         : Icon(
                             isActive ? item.activeIcon : item.icon,
-                            color: isActive ? AppColors.accent : AppColors.navInactive,
+                            color: isActive
+                                ? AppColors.accent
+                                : AppColors.navInactive,
                             size: 22,
                           ),
                     const SizedBox(height: 4),
@@ -91,8 +109,10 @@ class _BudgetNavBar extends StatelessWidget {
                       style: TextStyle(
                         fontFamily: AppTextStyles.fontFamily,
                         fontSize: 10,
-                        fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
-                        color: isActive ? AppColors.accent : AppColors.navInactive,
+                        fontWeight:
+                            isActive ? FontWeight.w600 : FontWeight.w400,
+                        color:
+                            isActive ? AppColors.accent : AppColors.navInactive,
                       ),
                     ),
                   ],

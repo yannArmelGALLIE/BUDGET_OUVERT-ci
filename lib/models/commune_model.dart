@@ -1,94 +1,82 @@
 // lib/models/commune_model.dart
+// Aligné sur les noms de champs du MCD :
+// nom_commune, departement, region, statut_actif, logo_url, email_contact
 
 class CommuneModel {
   final String id;
-  final String name;
+  final String nomCommune;
+  final String departement;
   final String region;
-  final double budgetTotal;
-  final double budgetConsomme;
-  final double tauxExecution;
-  final String visionLabel;
-  final List<ProjectModel> projets;
+  final int? population;
+  final String? emailContact;
+  final String? telephone;
+  final String? logoUrl;
+  final bool statutActif;
+  final double? budget;        // calculé côté API (total recettes)
+  final double? budgetUtilise; // calculé côté API (total dépenses)
+  final DateTime? dateInscription;
 
-  CommuneModel({
+  const CommuneModel({
     required this.id,
-    required this.name,
+    required this.nomCommune,
+    required this.departement,
     required this.region,
-    required this.budgetTotal,
-    required this.budgetConsomme,
-    required this.tauxExecution,
-    required this.visionLabel,
-    required this.projets,
+    this.population,
+    this.emailContact,
+    this.telephone,
+    this.logoUrl,
+    this.statutActif = true,
+    this.budget,
+    this.budgetUtilise,
+    this.dateInscription,
   });
 
-  double get pourcentageConsommation =>
-      budgetTotal > 0 ? (budgetConsomme / budgetTotal) * 100 : 0;
+  // ── Getters calculés ─────────────────────────────────────────────────────
+  double get tauxExecution =>
+      (budget != null && budgetUtilise != null && budget! > 0)
+          ? (budgetUtilise! / budget!) * 100
+          : 0.0;
 
-  // ── Commune par défaut : Cocody ──────────────────────────────
-  static CommuneModel cocody() => CommuneModel(
-        id: 'cocody',
-        name: 'Cocody',
-        region: 'Abidjan',
-        budgetTotal: 0,       // sera écrasé par les données blockchain
-        budgetConsomme: 0,    // sera calculé depuis les transactions
-        tauxExecution: 0,
-        visionLabel: 'Commune Cocody',
-        projets: [],          // transactions blockchain = projets
-      );
+  double get budgetRestant => (budget ?? 0) - (budgetUtilise ?? 0);
 
-  // Alias pour rétro-compatibilité
-  static CommuneModel sample() => cocody();
-}
+  // Alias court pour l'affichage (compatibilité avec les widgets existants)
+  String get name => nomCommune;
 
-// ─── PROJECT MODEL (données mock / QR scan) ───────────────────────────────
-class ProjectModel {
-  final String id;
-  final String code;
-  final String titre;
-  final String description;
-  final String categorie;
-  final String statut;
-  final double financement;
-  final double investissementPaye;
-  final double progressionGlobale;
-  final String localisation;
-  final String commune;
-  final String dateDebut;
-  final String dateFin;
-  final List<EtapeModel> etapes;
-  final List<AudioModel> audios;
-  final String? imageUrl;
+  // ── Désérialisation — lit les vrais noms du MCD ───────────────────────
+  factory CommuneModel.fromJson(Map<String, dynamic> json) {
+    return CommuneModel(
+      id: json['id_commune'] as String? ?? json['id'] as String,
+      nomCommune: json['nom_commune'] as String? ?? json['name'] as String? ?? '',
+      departement: json['departement'] as String? ?? '',
+      region: json['region'] as String? ?? '',
+      population: (json['population'] as num?)?.toInt(),
+      emailContact: json['email_contact'] as String?,
+      telephone: json['telephone'] as String?,
+      logoUrl: json['logo_url'] as String?,
+      statutActif: json['statut_actif'] as bool? ?? true,
+      budget: (json['budget'] as num?)?.toDouble(),
+      budgetUtilise: (json['budget_utilise'] as num?)?.toDouble(),
+      dateInscription: json['date_inscription'] != null
+          ? DateTime.tryParse(json['date_inscription'] as String)
+          : null,
+    );
+  }
 
-  ProjectModel({
-    required this.id,
-    required this.code,
-    required this.titre,
-    required this.description,
-    required this.categorie,
-    required this.statut,
-    required this.financement,
-    required this.investissementPaye,
-    required this.progressionGlobale,
-    required this.localisation,
-    required this.commune,
-    required this.dateDebut,
-    required this.dateFin,
-    required this.etapes,
-    required this.audios,
-    this.imageUrl,
-  });
+  Map<String, dynamic> toJson() => {
+        'id_commune': id,
+        'nom_commune': nomCommune,
+        'departement': departement,
+        'region': region,
+        'population': population,
+        'email_contact': emailContact,
+        'telephone': telephone,
+        'logo_url': logoUrl,
+        'statut_actif': statutActif,
+        'budget': budget,
+        'budget_utilise': budgetUtilise,
+        'date_inscription': dateInscription?.toIso8601String(),
+      };
 
-  static List<ProjectModel> samples() => [];
-}
-
-class EtapeModel {
-  final String label;
-  final String statut;
-  EtapeModel({required this.label, required this.statut});
-}
-
-class AudioModel {
-  final String langue;
-  final String url;
-  AudioModel({required this.langue, required this.url});
+  @override
+  String toString() => 'CommuneModel($nomCommune, $region)';
 }

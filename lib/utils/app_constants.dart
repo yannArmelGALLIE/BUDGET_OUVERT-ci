@@ -44,7 +44,7 @@ class AppColors {
 }
 
 class AppTextStyles {
-  static const String fontFamily = 'Outfit';
+  static const String fontFamily = 'Poppins';
 
   static const TextStyle displayLarge = TextStyle(
     fontFamily: fontFamily,
@@ -156,7 +156,7 @@ class AppStrings {
 
   static const String onboarding3Title = 'Votre Voix Compte';
   static const String onboarding3Body =
-      'Scannez les chantiers QR pour voir le budget en temps réel. Accédez aux données blockchain de votre commune.';
+      'Scannez les QR codes pour accéder directement aux détails d\'une opération ou d\'une commune.';
 
   // Auth
   static const String createAccount = 'Créer un compte';
